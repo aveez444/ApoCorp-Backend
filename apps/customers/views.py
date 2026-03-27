@@ -46,22 +46,27 @@ class CustomerViewSet(ModelPermissionMixin, TenantModelViewSet):
         customer.save()
         return Response({'status': 'unlocked'})
 
+
     @action(detail=False, methods=['get'])
     def search(self, request):
         """
         Efficient customer search with pagination for dropdowns.
         
         Query params:
-          q        — search term (matches company_name, email, customer_code)
-          page     — 1-based page number (default 1)
-          limit    — items per page, max 50 (default 20)
-          detail   — if 'true', returns full customer data (default 'false')
+        q        — search term (matches company_name, email, customer_code, phone)
+        tier     — filter by tier (A, B, C)
+        location — filter by city or country
+        page     — 1-based page number (default 1)
+        limit    — items per page, max 50 (default 20)
+        detail   — if 'true', returns full customer data (default 'false')
         
         Returns:
-          { results: [...], total: N, page: N, pages: N, has_next: bool }
+        { results: [...], total: N, page: N, pages: N, has_next: bool }
         """
         
         query = request.GET.get("q", "").strip()
+        tier = request.GET.get("tier", "").strip()
+        location = request.GET.get("location", "").strip()
         detail = request.GET.get("detail", "false").lower() == "true"
         
         try:
@@ -87,6 +92,18 @@ class CustomerViewSet(ModelPermissionMixin, TenantModelViewSet):
                     Q(customer_code__icontains=token) |
                     Q(telephone_primary__icontains=token)
                 )
+        
+        # Tier filter
+        if tier and tier in ['A', 'B', 'C']:
+            qs = qs.filter(tier=tier)
+        
+        # Location filter (city or country)
+        if location:
+            location_lower = location.lower()
+            qs = qs.filter(
+                Q(city__icontains=location_lower) |
+                Q(country__icontains=location_lower)
+            )
         
         # Optimize with select_related/prefetch_related for related data
         qs = qs.select_related('account_manager').prefetch_related('pocs', 'addresses')
