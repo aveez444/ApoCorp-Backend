@@ -42,7 +42,6 @@ INSTALLED_APPS = [
     'corsheaders',
     'rest_framework_simplejwt.token_blacklist',
     
-
     'apps.tenants',
     'apps.accounts',
     'apps.customers',
@@ -54,6 +53,8 @@ INSTALLED_APPS = [
     'apps.notifications',
     'apps.reports',
     'apps.products',
+
+    'storages',
 ]
 
 MIDDLEWARE = [
