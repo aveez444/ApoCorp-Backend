@@ -53,6 +53,7 @@ INSTALLED_APPS = [
     'apps.notifications',
     'apps.reports',
     'apps.products',
+    "apps.custom_reports", 
 
     'storages',
 ]
