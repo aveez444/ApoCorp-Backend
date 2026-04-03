@@ -208,15 +208,15 @@ class QuotationPDFView(APIView):
         # 4 & 5. Generate PDF
         try:
             lh = quotation.tenant.letterhead
-            letterhead_path = lh.letterhead_pdf.path if lh.letterhead_pdf else None
+            letterhead_file = lh.letterhead_pdf if lh.letterhead_pdf else None
         except TenantLetterhead.DoesNotExist:
-            letterhead_path = None
+            letterhead_file = None
 
         try:
             pdf_bytes = generate_quotation_pdf(
                 html=html,
                 base_url=request.build_absolute_uri('/'),
-                letterhead_pdf_path=letterhead_path,
+                letterhead_pdf_file=letterhead_file,
             )
         except ImportError as exc:
             return Response({'error': str(exc)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

@@ -184,16 +184,18 @@ def render_content_pdf(html: str, base_url: str) -> bytes:
 
     return pdf_bytes
 
-
 # ─────────────────────────────────────────────────────────────────────────────
 # Stage 2: overlay content PDF onto letterhead PDF via PyMuPDF
 # ─────────────────────────────────────────────────────────────────────────────
 
 def overlay_on_letterhead(content_pdf_bytes: bytes,
-                           letterhead_pdf_path: str) -> bytes:
+                           letterhead_pdf_bytes: bytes) -> bytes:
     """
     For each page of content_pdf_bytes, stamp it on top of the matching
     page of the tenant's letterhead PDF.
+
+    Accepts letterhead as bytes — works with any storage backend
+    (local disk, Azure Blob, S3, etc). Caller just does file.read().
 
     If the letterhead has fewer pages than the content, the last
     letterhead page is reused for overflow content pages.
@@ -203,8 +205,8 @@ def overlay_on_letterhead(content_pdf_bytes: bytes,
     except ImportError:
         raise ImportError('PyMuPDF not installed. Run: pip install pymupdf')
 
-    lh_doc      = fitz.open(letterhead_pdf_path)
-    content_doc = fitz.open(stream=content_pdf_bytes, filetype='pdf')
+    lh_doc      = fitz.open(stream=letterhead_pdf_bytes, filetype='pdf')
+    content_doc = fitz.open(stream=content_pdf_bytes,    filetype='pdf')
     lh_count    = len(lh_doc)
     out_doc     = fitz.open()
 
@@ -233,20 +235,35 @@ def overlay_on_letterhead(content_pdf_bytes: bytes,
 
 def generate_quotation_pdf(html: str,
                             base_url: str,
-                            letterhead_pdf_path: str | None) -> bytes:
+                            letterhead_pdf_file) -> bytes:
     """
     Full pipeline:
       1. Render HTML → content PDF (Playwright / headless Chromium)
-      2. If letterhead PDF exists → overlay content on it (PyMuPDF)
-         Otherwise → return content-only PDF
+      2. If letterhead_pdf_file is provided → read it into memory and
+         overlay the content PDF onto it (PyMuPDF).
+         Otherwise → return content-only PDF.
+
+    letterhead_pdf_file can be:
+      - None / falsy          → skip overlay, return content-only PDF
+      - A Django FieldFile    → opened and read() here
+      - Raw bytes             → used directly (for testing)
 
     Falls back to content-only PDF if overlay fails (logs a warning).
     """
     content_bytes = render_content_pdf(html, base_url)
 
-    if letterhead_pdf_path:
+    if letterhead_pdf_file:
         try:
-            return overlay_on_letterhead(content_bytes, letterhead_pdf_path)
+            # Works with any Django storage backend (local, Azure Blob, S3…)
+            # by reading the file into memory rather than using .path
+            if isinstance(letterhead_pdf_file, (bytes, bytearray)):
+                lh_bytes = bytes(letterhead_pdf_file)
+            else:
+                letterhead_pdf_file.open('rb')
+                lh_bytes = letterhead_pdf_file.read()
+                letterhead_pdf_file.close()
+
+            return overlay_on_letterhead(content_bytes, lh_bytes)
         except Exception as exc:
             import logging
             logging.getLogger(__name__).warning(
