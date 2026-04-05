@@ -110,6 +110,7 @@ class SavedReportListSerializer(serializers.ModelSerializer):
             "column_count",
             "created_at",
             "updated_at",
+            "config",   # ✅ ADD THIS
         )
 
     def get_created_by_name(self, obj):
