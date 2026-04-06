@@ -42,7 +42,6 @@ INSTALLED_APPS = [
     'corsheaders',
     'rest_framework_simplejwt.token_blacklist',
     
-
     'apps.tenants',
     'apps.accounts',
     'apps.customers',
@@ -54,6 +53,10 @@ INSTALLED_APPS = [
     'apps.notifications',
     'apps.reports',
     'apps.products',
+    "apps.custom_reports", 
+    'apps.documents',
+
+    'storages',
 ]
 
 MIDDLEWARE = [
@@ -175,4 +178,3 @@ STATIC_ROOT = BASE_DIR / 'staticfiles'   # ← add this line
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
 
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'

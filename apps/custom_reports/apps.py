@@ -1,0 +1,7 @@
+from django.apps import AppConfig
+
+
+class CustomReportsConfig(AppConfig):
+    default_auto_field = "django.db.models.BigAutoField"
+    name               = "apps.custom_reports"
+    verbose_name       = "Custom Reports"

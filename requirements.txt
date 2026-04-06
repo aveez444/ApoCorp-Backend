@@ -7,3 +7,6 @@ psycopg2-binary
 Pillow
 whitenoise
 gunicorn
+django-storages[azure]
+playwright
+pymupdf
