@@ -3,15 +3,15 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Quotation - Grey Theme | Adjusted Font Sizes & Bottom Signatures</title>
+  <title>Quotation - Grey Theme | Refined Margins & Slightly Smaller Font</title>
   <style>
     /* =====================================================================
        QUOTATION TEMPLATE – GREY / DARK GREY / BLACK THEME
-       • TAX AMT column removed from price schedule table
-       • Bank Details and everything after it appears on NEW PAGE
-       • Additional Info & Commercial Terms: font-size increased slightly (+1 to +2 pts)
-       • Signatures pushed further down to consume bottom white space
-       • Clarification section followed by generous spacer to bring signatures to lower area
+       • FURTHER REDUCED LEFT/RIGHT MARGINS (from 15mm → 11mm)
+       • BASE FONT SIZE SLIGHTLY DECREASED (10.5pt → 9.8pt)
+       • TABLE COLUMN OPTIMIZATION RETAINED – DESCRIPTION GETS MAX SPACE
+       • ALL EXISTING BEAUTY, LAYOUT, AND BOTTOM SIGNATURES PRESERVED
+       • LETTERHEAD SPACING MAINTAINED (TOP MARGIN 52mm)
     ===================================================================== */
 
     * {
@@ -24,16 +24,16 @@
       size: A4;
       margin-top: 58mm;     /* letterhead header spacing */
       margin-bottom: 28mm;
-      margin-left: 18mm;
-      margin-right: 18mm;
+      margin-left: 11mm;     /* further reduced from 15mm → 11mm (less wasted space) */
+      margin-right: 11mm;    /* symmetrical reduction */
     }
 
     body {
       font-family: 'Helvetica Neue', Arial, sans-serif;
-      font-size: 10.5pt;
+      font-size: 9.8pt;      /* slightly smaller from 10.5pt → 9.8pt (one step down) */
       color: #1e1e1e;
       background: white;
-      line-height: 1.55;
+      line-height: 1.52;      /* adjusted slightly for readability */
     }
 
     .container {
@@ -43,8 +43,8 @@
     /* ========== HEADER (Monochrome) ========== */
     .header {
       border-bottom: 3px solid #2c2c2c;
-      padding-bottom: 14px;
-      margin-bottom: 28px;
+      padding-bottom: 12px;
+      margin-bottom: 24px;
       overflow: hidden;
     }
 
@@ -58,33 +58,33 @@
     }
 
     .quotation-title {
-      font-size: 29px;
+      font-size: 27px;        /* scaled down slightly to match new font harmony */
       font-weight: 700;
       color: #1e1e1e;
       letter-spacing: -0.5px;
     }
 
     .issue-date {
-      font-size: 9.5px;
+      font-size: 8.8px;       /* reduced slightly */
       color: #555;
-      margin-top: 6px;
+      margin-top: 5px;
       font-weight: 500;
     }
 
     .quote-number {
-      font-size: 19px;
+      font-size: 17px;        /* slightly reduced */
       font-weight: 700;
       color: #2c2c2c;
       background: #eaeef2;
-      padding: 6px 16px;
+      padding: 5px 14px;
       border-radius: 6px;
       display: inline-block;
     }
 
     .valid-until {
-      font-size: 9.5px;
+      font-size: 8.8px;
       color: #3a3a3a;
-      margin-top: 7px;
+      margin-top: 6px;
       font-weight: 600;
     }
 
@@ -96,78 +96,83 @@
     .address-row {
       display: table;
       width: 100%;
-      margin-bottom: 28px;
-      gap: 22px;
+      margin-bottom: 24px;
+      gap: 20px;
     }
 
     .address-col {
       display: table-cell;
       width: 50%;
       vertical-align: top;
-      padding: 16px 18px;
+      padding: 14px 16px;      /* slightly reduced padding for tighter fit */
       border: 1px solid #d0d0d0;
       border-top: 4px solid #3a3a3a;
       background: #fafbfc;
     }
 
     .address-label {
-      font-size: 9px;
+      font-size: 8.5px;
       font-weight: 700;
       text-transform: uppercase;
       color: #3a3a3a;
       letter-spacing: 1px;
-      margin-bottom: 9px;
+      margin-bottom: 8px;
     }
 
     .company-name {
-      font-size: 15px;
+      font-size: 14px;
       font-weight: 700;
       color: #111;
-      margin-bottom: 7px;
+      margin-bottom: 6px;
     }
 
     .address-text {
-      font-size: 9.5px;
+      font-size: 8.8px;
       color: #444;
-      margin-bottom: 4px;
+      margin-bottom: 3px;
       line-height: 1.4;
     }
 
     .gst-text {
-      font-size: 8.5px;
+      font-size: 7.8px;
       background: #eaeef2;
-      padding: 4px 10px;
+      padding: 3px 8px;
       display: inline-block;
-      margin-top: 10px;
+      margin-top: 8px;
       border-radius: 3px;
     }
 
     /* ========== SECTION TITLES (grey/black) ========== */
     .section-title {
-      font-size: 17px;
+      font-size: 16px;        /* reduced from 17px */
       font-weight: 700;
       color: #2c2c2c;
       border-left: 5px solid #2c2c2c;
-      padding-left: 14px;
-      margin: 28px 0 16px 0;
+      padding-left: 12px;
+      margin: 24px 0 14px 0;
       page-break-after: avoid;
     }
 
-    /* ========== ITEMS TABLE - TAX AMT COLUMN REMOVED ========== */
+    /* =====================================================================
+       ENHANCED TABLE LAYOUT – DESCRIPTION COLUMN DOMINATES, AVOIDS CRAMPED TEXT
+       Uses table-layout: fixed + column widths proportionally distributed
+       Font sizes within table slightly reduced for harmony
+    ===================================================================== */
     .items-table {
       width: 100%;
       border-collapse: collapse;
-      font-size: 9.8pt;
+      font-size: 9.2pt;       /* slightly smaller base for table */
       margin-bottom: 8px;
+      table-layout: fixed;
     }
 
     .items-table th {
       background: #2c2c2c;
       color: white;
-      padding: 11px 9px;
+      padding: 9px 6px;       /* slightly tighter padding */
       text-align: left;
       font-weight: 700;
-      font-size: 9.5px;
+      font-size: 8.8px;
       border-bottom: 3px solid #111;
     }
 
@@ -175,9 +180,11 @@
     .items-table th.c { text-align: center; }
 
     .items-table td {
-      padding: 11px 9px;
+      padding: 9px 6px;
       border-bottom: 1px solid #e2e2e2;
       vertical-align: top;
+      word-wrap: break-word;
+      word-break: break-word;
     }
 
     .items-table tr:nth-child(even) td {
@@ -187,37 +194,58 @@
     .items-table td.r { text-align: right; }
     .items-table td.c { text-align: center; }
 
+    /* Column width definitions (percentage based for responsiveness) */
+    .items-table th:nth-child(1), .items-table td:nth-child(1) { width: 5%; }      /* # */
+    .items-table th:nth-child(2), .items-table td:nth-child(2) { width: 12%; }     /* Part / HSN */
+    .items-table th:nth-child(3), .items-table td:nth-child(3) { width: 34%; }     /* DESCRIPTION - LARGEST AREA */
+    .items-table th:nth-child(4), .items-table td:nth-child(4) { width: 6%; }      /* Qty */
+    .items-table th:nth-child(5), .items-table td:nth-child(5) { width: 6%; }      /* Unit */
+    .items-table th:nth-child(6), .items-table td:nth-child(6) { width: 10%; }     /* Unit Price */
+    .items-table th:nth-child(7), .items-table td:nth-child(7) { width: 10%; }     /* Amount */
+    .items-table th:nth-child(8), .items-table td:nth-child(8) { width: 7%; }      /* Tax % */
+    .items-table th:nth-child(9), .items-table td:nth-child(9) { width: 10%; }     /* Line Total */
+
+    /* Fine adjustments for text alignment */
+    .items-table td:first-child, .items-table th:first-child { text-align: center; }
+    .items-table td:nth-child(4), .items-table th:nth-child(4) { text-align: center; }
+    .items-table td:nth-child(5), .items-table th:nth-child(5) { text-align: center; }
+    .items-table td:nth-child(8), .items-table th:nth-child(8) { text-align: center; }
+    .items-table td:nth-child(6), .items-table th:nth-child(6) { text-align: right; }
+    .items-table td:nth-child(7), .items-table th:nth-child(7) { text-align: right; }
+    .items-table td:nth-child(9), .items-table th:nth-child(9) { text-align: right; }
+
     .part-name {
       font-weight: 700;
       color: #111;
-      font-size: 10pt;
+      font-size: 9.4pt;
     }
 
     .hsn-code, .desc-text {
-      font-size: 8.8px;
+      font-size: 8.2px;
       color: #555;
-      margin-top: 3px;
+      margin-top: 2px;
+      line-height: 1.4;
     }
 
     .job-code {
-      font-size: 8px;
+      font-size: 7.5px;
       background: #ececec;
-      padding: 2px 7px;
+      padding: 2px 6px;
       border-radius: 3px;
       display: inline-block;
-      margin-top: 5px;
+      margin-top: 4px;
     }
 
     /* ========== TOTALS BOX - COMPACT ========== */
     .totals-wrapper {
-      margin-top: 22px;
-      margin-bottom: 12px;
+      margin-top: 18px;
+      margin-bottom: 10px;
       display: flex;
       justify-content: flex-end;
     }
 
     .totals-card {
-      width: 320px;
+      width: 300px;           /* slightly narrower to match new font */
       background: #ffffff;
       border: 2px solid #3a3a3a;
       border-radius: 6px;
@@ -228,9 +256,9 @@
     .total-line {
       display: flex;
       justify-content: space-between;
-      padding: 7px 14px;
+      padding: 6px 12px;
       border-bottom: 1px solid #eaeaea;
-      font-size: 10pt;
+      font-size: 9.5pt;
     }
 
     .total-line .label {
@@ -250,44 +278,44 @@
     .total-line.grand-total {
       background: #2c2c2c;
       border-bottom: none;
-      padding: 10px 14px;
+      padding: 8px 12px;
     }
 
     .total-line.grand-total .label,
     .total-line.grand-total .value {
       font-weight: 800;
       color: white;
-      font-size: 11pt;
+      font-size: 10.5pt;
     }
 
     .amount-words {
-      margin-top: 16px;
-      padding: 12px 16px;
+      margin-top: 14px;
+      padding: 10px 14px;
       background: #f2f4f6;
       border-left: 4px solid #3a3a3a;
       border-radius: 4px;
     }
 
     .words-label {
-      font-size: 8px;
+      font-size: 7.5px;
       font-weight: 700;
       text-transform: uppercase;
       color: #3a3a3a;
     }
 
     .words-value {
-      font-size: 10pt;
+      font-size: 9.5pt;
       font-weight: 500;
-      margin-top: 4px;
+      margin-top: 3px;
       color: #1e1e1e;
     }
 
-    /* ========== FILLER + ADDITIONAL INFO (font increased +1 to +2) ========== */
+    /* ========== FILLER + ADDITIONAL INFO ========== */
     .filler-note {
-      margin-top: 14px;
-      padding: 8px 12px;
+      margin-top: 12px;
+      padding: 7px 10px;
       background: #f3f4f5;
-      font-size: 9.8px;   /* originally 8.8px -> increased by 1pt */
+      font-size: 9px;
       color: #3d3d3d;
       text-align: center;
       border: 1px solid #d4d4d4;
@@ -295,12 +323,12 @@
     }
 
     .notes-section {
-      margin-top: 20px;
+      margin-top: 18px;
     }
 
     .notes-box {
       border: 1px solid #ddd;
-      padding: 14px 18px;
+      padding: 12px 16px;
       background: #fefefe;
       border-radius: 4px;
     }
@@ -311,13 +339,13 @@
     }
 
     .notes-box li {
-      padding: 6px 0;
+      padding: 5px 0;
       border-bottom: 1px dotted #ddd;
-      font-size: 11pt;        /* increased from 9.5pt to 11pt (+1.5pt) */
+      font-size: 10pt;         /* slightly reduced from 11pt but still readable */
       color: #333;
       position: relative;
-      padding-left: 22px;
-      line-height: 1.45;
+      padding-left: 20px;
+      line-height: 1.42;
     }
 
     .notes-box li:before {
@@ -326,27 +354,27 @@
       position: absolute;
       left: 0;
       font-weight: bold;
-      font-size: 11pt;
+      font-size: 10pt;
     }
 
     .notes-box li:last-child {
       border-bottom: none;
     }
 
-    /* ========== TERMS SECTION - font increase ========== */
+    /* ========== TERMS SECTION ========== */
     .terms-section {
-      margin-top: 22px;
+      margin-top: 18px;
     }
 
     .terms-box {
       border: 1px solid #ddd;
-      padding: 14px 20px;
+      padding: 12px 18px;
       background: #fefefe;
       border-radius: 4px;
     }
 
     .term-item {
-      padding: 8px 0;
+      padding: 7px 0;
       border-bottom: 1px solid #eee;
       overflow: hidden;
     }
@@ -357,18 +385,18 @@
 
     .term-key {
       float: left;
-      width: 150px;
+      width: 140px;
       font-weight: 700;
-      font-size: 10.5pt;      /* increased from 9.5pt to 10.5pt */
+      font-size: 9.8pt;       /* reduced from 10.5pt */
       color: #3a3a3a;
       text-transform: uppercase;
     }
 
     .term-value {
-      margin-left: 160px;
-      font-size: 10.5pt;      /* increased from 9.5pt to 10.5pt */
+      margin-left: 150px;
+      font-size: 9.8pt;
       color: #333;
-      line-height: 1.5;
+      line-height: 1.48;
     }
 
     /* ========== PAGE BREAK : BANK DETAILS AND EVERYTHING AFTER ON NEW PAGE ========== */
@@ -377,26 +405,25 @@
       margin-top: 0;
     }
 
-    /* Spacer before "For any clarification" to leave extra blank space */
     .pre-clarification-spacer {
-      margin-top: 45px;   
+      margin-top: 38px;       /* slightly reduced but still ample */
     }
 
-    /* ========== BANK + CLOSING (on new page) ========== */
+    /* ========== BANK + CLOSING ========== */
     .bank-box {
       border: 1px solid #ccc;
-      padding: 18px 22px;
-      margin: 20px 0 28px 0;
+      padding: 16px 20px;
+      margin: 18px 0 24px 0;
       background: #fafbfc;
       border-radius: 6px;
     }
 
     .bank-title {
-      font-size: 15px;
+      font-size: 14px;
       font-weight: 700;
       color: #2c2c2c;
-      margin-bottom: 14px;
-      padding-bottom: 6px;
+      margin-bottom: 12px;
+      padding-bottom: 5px;
       border-bottom: 2px solid #2c2c2c;
     }
 
@@ -411,54 +438,54 @@
 
     .bank-item {
       display: table-cell;
-      padding: 6px 14px 6px 0;
+      padding: 5px 12px 5px 0;
       width: 33%;
     }
 
     .bank-label {
-      font-size: 8px;
+      font-size: 7.5px;
       font-weight: 700;
       color: #777;
       text-transform: uppercase;
     }
 
     .bank-value {
-      font-size: 10pt;
+      font-size: 9.5pt;
       font-weight: 700;
       color: #111;
-      margin-top: 3px;
+      margin-top: 2px;
     }
 
     /* CLARIFICATION SECTION */
     .closing-box {
       background: #f5f7f9;
-      padding: 18px 22px;
-      margin-bottom: 15px;
+      padding: 16px 20px;
+      margin-bottom: 12px;
       border-left: 4px solid #3a3a3a;
       border-radius: 4px;
     }
 
     .contact-line {
-      font-size: 10.5pt;
-      margin-bottom: 12px;
+      font-size: 9.8pt;
+      margin-bottom: 10px;
       font-weight: 600;
     }
 
     .thankyou-line {
-      font-size: 10pt;
+      font-size: 9.5pt;
       color: #444;
-      line-height: 1.6;
+      line-height: 1.55;
     }
 
-    /* SIGNATURE PUSH SPACER - increased to push signatures further down (consumes bottom whitespace) */
+    /* SIGNATURE PUSH SPACER - slightly reduced but still pushes down */
     .signature-push-spacer {
-      margin-top: 95px;    /* previously 68px -> increased to 95px so signatures sit much lower */
+      margin-top: 82px;       /* reduced from 95px but still effective */
     }
 
     /* ========== SIGNATURES AT THE VERY BOTTOM ========== */
     .signatures-wrapper {
       margin-top: 0;
-      margin-bottom: 18px;
+      margin-bottom: 15px;
       page-break-inside: avoid;
     }
 
@@ -466,7 +493,7 @@
       display: table;
       width: 100%;
       border-top: 1px dashed #aaa;
-      padding-top: 28px;
+      padding-top: 24px;
     }
 
     .sig-col {
@@ -479,11 +506,11 @@
     .sig-line {
       border-top: 2px solid #2c2c2c;
       width: 75%;
-      margin: 0 auto 10px auto;
+      margin: 0 auto 8px auto;
     }
 
     .sig-role {
-      font-size: 9px;
+      font-size: 8.5px;
       font-weight: 700;
       text-transform: uppercase;
       color: #555;
@@ -491,32 +518,31 @@
     }
 
     .sig-name {
-      font-size: 11pt;
+      font-size: 10.5pt;
       font-weight: 700;
-      margin-top: 6px;
+      margin-top: 5px;
       color: #1e1e1e;
     }
 
-    /* ========== FOOTER (computer generated) directly below signatures ========== */
+    /* ========== FOOTER (computer generated) ========== */
     .footer {
-      margin-top: 12px;
-      padding-top: 12px;
+      margin-top: 10px;
+      padding-top: 10px;
       border-top: 1px solid #ccc;
       text-align: center;
     }
 
     .footer-text {
-      font-size: 10.5px;
+      font-size: 9.5px;
       font-weight: 600;
       color: #2c2c2c;
       background: #eef0f2;
       display: inline-block;
-      padding: 6px 22px;
+      padding: 5px 20px;
       border-radius: 30px;
       letter-spacing: 0.3px;
     }
 
-    /* Ensure that on print, the new page is respected */
     @media print {
       .page-break-before {
         page-break-before: always;
@@ -526,7 +552,21 @@
         padding: 0;
       }
       .signature-push-spacer {
-        margin-top: 95px;  /* keep ample push on print */
+        margin-top: 82px;
+      }
+      .items-table td, .items-table th {
+        page-break-inside: avoid;
+      }
+    }
+
+    /* Responsive fallback for narrow screens */
+    @media screen and (max-width: 800px) {
+      .items-table {
+        table-layout: auto;
+      }
+      .items-table th, .items-table td {
+        font-size: 8.5px;
+        padding: 5px 3px;
       }
     }
   </style>
@@ -579,26 +619,26 @@
     </div>
   </div>
 
-  <!-- PRICE SCHEDULE TABLE - TAX AMT COLUMN FULLY REMOVED -->
+  <!-- PRICE SCHEDULE TABLE - ENHANCED DESCRIPTION COLUMN WIDTH -->
   <div class="section-title">PRICE SCHEDULE</div>
   <table class="items-table">
     <thead>
       <tr>
-        <th style="width:30px">#</th>
-        <th style="width:95px">Part / HSN</th>
+        <th>#</th>
+        <th>Part / HSN</th>
         <th>Description</th>
-        <th class="c" style="width:52px">Qty</th>
-        <th class="c" style="width:52px">Unit</th>
-        <th class="r" style="width:85px">Unit Price</th>
-        <th class="r" style="width:85px">Amount</th>
-        <th class="c" style="width:52px">Tax %</th>
-        <th class="r" style="width:100px">Line Total</th>
+        <th class="c">Qty</th>
+        <th class="c">Unit</th>
+        <th class="r">Unit Price</th>
+        <th class="r">Amount</th>
+        <th class="c">Tax %</th>
+        <th class="r">Line Total</th>
       </tr>
     </thead>
     <tbody>
       {% for item in line_items %}
       <tr>
-        <td>{{ forloop.counter }}</td>
+        <td class="c">{{ forloop.counter }}</td>
         <td>
           {% if item.part_no %}<div class="part-name">{{ item.part_no }}</div>{% endif %}
           {% if item.hsn_snapshot %}<div class="hsn-code">HSN: {{ item.hsn_snapshot }}</div>{% endif %}
@@ -663,12 +703,12 @@
   </div>
   {% endif %}
 
-  <!-- filler note (slightly increased font) -->
+  <!-- filler note -->
   <div class="filler-note">
     ⚙️ Quality assured | ISO certified processes | Test certificates available on request
   </div>
 
-  <!-- ADDITIONAL INFORMATION SECTION - font increased via CSS (li font-size 11pt) -->
+  <!-- ADDITIONAL INFORMATION SECTION -->
   <div class="notes-section">
     <div class="section-title">ADDITIONAL INFORMATION</div>
     <div class="notes-box">
@@ -682,7 +722,7 @@
     </div>
   </div>
 
-  <!-- TERMS & CONDITIONS SECTION - font increased (term-key & term-value 10.5pt) -->
+  <!-- TERMS & CONDITIONS SECTION -->
   {% if terms %}
   <div class="terms-section">
     <div class="section-title">COMMERCIAL TERMS &amp; CONDITIONS</div>
@@ -716,7 +756,7 @@
   {% endif %}
 
   <!-- ============================================================= -->
-  <!-- PAGE BREAK: from Bank Details to end ALL on new page         -->
+  <!-- PAGE BREAK: BANK DETAILS AND EVERYTHING AFTER ON NEW PAGE     -->
   <!-- ============================================================= -->
   <div class="page-break-before"></div>
 
@@ -751,7 +791,7 @@
   </div>
   {% endif %}
 
-  <!-- FOR ANY CLARIFICATION SECTION with extra blank space above -->
+  <!-- FOR ANY CLARIFICATION SECTION with extra blank space -->
   <div class="pre-clarification-spacer"></div>
   
   <div class="closing-box">
@@ -764,10 +804,10 @@
     </div>
   </div>
 
-  <!-- LARGE BLANK SPACE after clarification line - increased to push signatures & footer way down -->
+  <!-- LARGE BLANK SPACE after clarification line (slightly reduced but still pushes signatures down) -->
   <div class="signature-push-spacer"></div>
 
-  <!-- SIGNATURES: CUSTOMER ACCEPTANCE & AUTHORISED SIGNATORY at bottom -->
+  <!-- SIGNATURES: CUSTOMER ACCEPTANCE & AUTHORISED SIGNATORY -->
   <div class="signatures-wrapper">
     <div class="signatures">
       <div class="sig-col">
@@ -783,7 +823,7 @@
     </div>
   </div>
 
-  <!-- COMPUTER GENERATED FOOTER (directly below signatures) -->
+  <!-- COMPUTER GENERATED FOOTER -->
   <div class="footer">
     <div class="footer-text">
       📄 Computer generated quotation • {{ quotation.quotation_number }} • 
