@@ -216,3 +216,30 @@ class SavedReportViewSet(ModelPermissionMixin, TenantModelViewSet):
             SavedReportSerializer(clone).data,
             status=status.HTTP_201_CREATED,
         )
+    
+    # Add this method to SavedReportViewSet in apps/reports/views.py
+
+    @action(detail=True, methods=["post"], url_path="export-excel")
+    def export_excel(self, request, pk=None):
+        """Export saved report to Excel."""
+        from .export_views import ExcelExporter
+        
+        report = self.get_object()
+        engine = ReportEngine(config=report.config, tenant=request.tenant)
+        qs = engine._build_queryset()
+        columns = engine._resolved_columns()
+        
+        data = []
+        for obj in qs:
+            data.append(engine._serialize_row(obj, columns))
+        
+        exporter = ExcelExporter(title=report.name[:31])
+        exporter.add_header(columns)
+        
+        for idx, row in enumerate(data):
+            exporter.add_row(row, columns, is_alternate=(idx % 2 == 1))
+        
+        exporter.auto_filter()
+        exporter.freeze_header()
+        
+        return exporter.save_to_response(report.name)

@@ -84,6 +84,16 @@ class OrderAcknowledgementSerializer(
             total_tax += line_tax
         return sub_total, total_tax, sub_total + total_tax
 
+    def to_representation(self, instance):
+        """Override to always show latest PO number from quotation"""
+        data = super().to_representation(instance)
+        
+        # Override customer_po_number in transport_details with live quotation.po_number
+        if instance.quotation and data.get('transport_details'):
+            data['transport_details']['customer_po_number'] = instance.quotation.po_number or "NA"
+        
+        return data
+
     def _enrich_line_items(self, line_items_data):
         """
         Recalculate tax_amount and total on each line item dict in-place.
