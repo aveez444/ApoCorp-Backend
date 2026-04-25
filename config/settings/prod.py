@@ -27,6 +27,7 @@ CSRF_TRUSTED_ORIGINS = [
     'https://apo-corp-frontend.vercel.app',
     'https://apocorptech.com',
     'https://www.apocorptech.com',
+    'https://erp.apocorptech.com',
 ]
 
 SECURE_SSL_REDIRECT = False  # Azure handles SSL, not Django
