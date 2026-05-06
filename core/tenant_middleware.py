@@ -12,9 +12,13 @@ class TenantMiddleware:
         # Define public endpoints that don't need tenant header
         public_paths = [
             '/admin/',
-            '/media/',          # Add this line to exclude media files
+            '/media/',
             '/api/accounts/login/',
-            '/api/accounts/token/refresh/',  # if you have refresh endpoint
+            '/api/accounts/token/refresh/',
+            # Add these password reset endpoints
+            '/api/accounts/forgot-password/',
+            '/api/accounts/validate-reset-token/',
+            '/api/accounts/reset-password/',
         ]
         
         # Check if current path is public

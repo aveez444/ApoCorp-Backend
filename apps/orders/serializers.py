@@ -14,8 +14,8 @@ from .models import (
 class OALineItemSerializer(serializers.ModelSerializer):
     class Meta:
         model = OALineItem
-        exclude = ('oa',)
-
+        fields = '__all__'
+        read_only_fields = ('oa',)
 
 class OACommercialTermsSerializer(serializers.ModelSerializer):
     class Meta:
@@ -177,9 +177,67 @@ class OrderAcknowledgementSerializer(
         return instance
 
 
-class OrderSerializer(serializers.ModelSerializer):
+class OrderDetailSerializer(serializers.ModelSerializer):
+    """Detailed Order serializer with full OA data for invoice creation"""
+    
+    # OA fields
+    oa_number = serializers.CharField(source='oa.oa_number', read_only=True)
+    oa_status = serializers.CharField(source='oa.status', read_only=True)
+    oa_total_value = serializers.DecimalField(source='oa.total_value', read_only=True, max_digits=15, decimal_places=2)
+    
+    # OA Line Items (critical for invoice creation)
+    oa_line_items = OALineItemSerializer(source='oa.line_items', many=True, read_only=True)
+    
+    # Address snapshots (bill_to / ship_to from OA)
+    billing_snapshot = serializers.JSONField(source='oa.billing_snapshot', read_only=True)
+    shipping_snapshot = serializers.JSONField(source='oa.shipping_snapshot', read_only=True)
+    
+    # Transport details (for pre-populating logistics step)
+    transport_details = serializers.JSONField(source='oa.transport_details', read_only=True)
+    
+    # Live customer data
+    customer_detail = CustomerReadSerializer(  # Import from apps.customers.serializers
+        source='oa.quotation.enquiry.customer', read_only=True
+    )
+    enquiry_number = serializers.CharField(
+        source='oa.quotation.enquiry.enquiry_number', read_only=True
+    )
+    quotation_number = serializers.CharField(
+        source='oa.quotation.quotation_number', read_only=True
+    )
+    po_number = serializers.CharField(
+        source='oa.quotation.po_number', read_only=True
+    )
+    
+    # Commercial terms
+    commercial_terms = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = Order
+        fields = [
+            'id', 'order_number', 'status', 'stage', 'order_category',
+            'invoice_status', 'currency', 'exchange_rate', 'total_value',
+            'advance_paid', 'created_at', 'tenant', 'oa',
+            # Extra OA fields
+            'oa_number', 'oa_status', 'oa_total_value',
+            'oa_line_items',  # ← This is what frontend needs!
+            'billing_snapshot',   # ← bill_to pre-fill
+            'shipping_snapshot',  # ← ship_to pre-fill
+            'transport_details',  # ← logistics pre-fill
+            'customer_detail', 'enquiry_number', 'quotation_number',
+            'po_number', 'commercial_terms',
+        ]
+    
+    def get_commercial_terms(self, obj):
+        if hasattr(obj.oa, 'commercial_terms'):
+            from .serializers import OACommercialTermsSerializer
+            return OACommercialTermsSerializer(obj.oa.commercial_terms).data
+        return None
 
-    # ── Live context fields ──
+
+class OrderSerializer(serializers.ModelSerializer):
+    """Basic Order serializer for list views"""
+    
     oa_number = serializers.CharField(source='oa.oa_number', read_only=True)
     customer_detail = CustomerReadSerializer(
         source='oa.quotation.enquiry.customer', read_only=True

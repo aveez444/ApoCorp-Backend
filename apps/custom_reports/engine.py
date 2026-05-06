@@ -119,6 +119,10 @@ class ReportEngine:
         if joins:
             qs = qs.select_related(*joins)
 
+        # ✅ ADD THIS BLOCK (just below select_related)
+        if "logistics" in self.modules:
+            qs = qs.prefetch_related("quotation__oa__order__back_orders")
+
         # Apply filters
         q_obj = self._build_filter_q()
         if q_obj:
@@ -129,6 +133,9 @@ class ReportEngine:
             qs = qs.order_by(self.order_by)
         except Exception:
             qs = qs.order_by("-created_at")
+
+        # ADD THIS LINE - to handle multiple backorders/invoices per enquiry
+        qs = qs.distinct()
 
         return qs
 
@@ -229,15 +236,56 @@ class ReportEngine:
         Follow a __ separated ORM path on a model instance.
         e.g. "customer__company_name" → obj.customer.company_name
         """
+
+        # ─────────────────────────────────────────────
+        # 🔥 SPECIAL HANDLING: LOGISTICS (BackOrders)
+        # ─────────────────────────────────────────────
+        if "back_orders" in orm_path:
+            try:
+                quotation = getattr(obj, "quotation", None)
+                if not quotation:
+                    return None
+
+                oa = getattr(quotation, "oa", None)
+                if not oa:
+                    return None
+
+                order = getattr(oa, "order", None)
+                if not order:
+                    return None
+
+                # Get first backorder (flat mode)
+                bo = order.back_orders.first()
+                if not bo:
+                    return None
+
+                # Map fields
+                if "back_order_number" in orm_path:
+                    return bo.back_order_number
+
+                if "back_order_status" in orm_path or "status" in orm_path:
+                    return bo.status
+
+                return None
+
+            except Exception:
+                return None
+
+        # ─────────────────────────────────────────────
+        # ✅ DEFAULT EXISTING LOGIC
+        # ─────────────────────────────────────────────
         parts = orm_path.split("__")
         value = obj
+
         for part in parts:
             if value is None:
                 return None
             value = getattr(value, part, None)
-        # Handle callables (e.g. get_status_display)
+
+        # Handle callables
         if callable(value):
             value = value()
+
         return value
 
     @staticmethod

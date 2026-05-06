@@ -163,6 +163,27 @@ class Order(TenantModelMixin):
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='IN_PROGRESS')
     stage = models.CharField(max_length=20, choices=STAGE_CHOICES, default='PLANNING')
 
+    # After stage = models.CharField(...)
+
+    order_category = models.CharField(
+        max_length=20,
+        choices=[
+            ('DOMESTIC', 'Domestic'),
+            ('INTERNATIONAL', 'International / Export'),
+        ],
+        default='DOMESTIC'
+    )
+
+    invoice_status = models.CharField(
+        max_length=20,
+        choices=[
+            ('NOT_INVOICED', 'Not Invoiced'),
+            ('PARTIALLY_INVOICED', 'Partially Invoiced'),
+            ('FULLY_INVOICED', 'Fully Invoiced'),
+        ],
+        default='NOT_INVOICED'
+    )
+
     currency = models.CharField(max_length=10)
     exchange_rate = models.DecimalField(max_digits=12, decimal_places=4, default=1)
     total_value = models.DecimalField(max_digits=15, decimal_places=2, default=0)

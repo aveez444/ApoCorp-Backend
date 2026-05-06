@@ -4,13 +4,14 @@ from rest_framework.response import Response
 from rest_framework.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
 from django.utils import timezone
+from decimal import Decimal
 
 from core.viewsets import TenantModelViewSet
 from core.mixins import ModelPermissionMixin
 from apps.accounts.models import TenantUser
 
 from .models import OrderAcknowledgement, OALineItem, Order
-from .serializers import OrderAcknowledgementSerializer, OrderSerializer
+from .serializers import OrderAcknowledgementSerializer, OrderSerializer, OrderDetailSerializer
 
 
 class OrderAcknowledgementViewSet(ModelPermissionMixin, TenantModelViewSet):
@@ -246,6 +247,12 @@ class OrderViewSet(ModelPermissionMixin, TenantModelViewSet):
     serializer_class = OrderSerializer
     permission_classes = [IsAuthenticated]
 
+    def get_serializer_class(self):
+        """Use OrderDetailSerializer for retrieve action"""
+        if self.action == 'retrieve':
+            return OrderDetailSerializer
+        return OrderSerializer
+
     def get_queryset(self):
         queryset = super().get_queryset()
 
@@ -260,3 +267,97 @@ class OrderViewSet(ModelPermissionMixin, TenantModelViewSet):
             )
 
         return queryset
+
+    @action(detail=True, methods=['get'])
+    def dispatch_summary(self, request, pk=None):
+        """
+        Get detailed shipping status for an order.
+        Shows per-line-item: shipped, remaining, and dispatch history.
+        
+        Clean architecture: Only goes through BackOrder → BackOrderLineItem → OALineItem
+        No direct invoice line items considered (since all invoices come from BackOrders)
+        """
+        order = self.get_object()
+        oa = order.oa
+        
+        if not oa:
+            return Response({
+                'error': 'No Order Acknowledgement linked to this order'
+            }, status=400)
+        
+        # Calculate shipped quantities - ONLY through BackOrder (clean path)
+        shipped_by_line = {}
+        
+        # Only consider confirmed/shipped backorders
+        for backorder in order.back_orders.filter(
+            status__in=['INVOICED', 'IN_TRANSIT', 'DELIVERED', 'COMPLETED']
+        ):
+            for item in backorder.line_items.select_related('oa_line_item').all():
+                line_id = str(item.oa_line_item.id)
+                shipped_by_line[line_id] = shipped_by_line.get(line_id, Decimal('0')) + item.quantity_dispatching
+        
+        # Build response
+        line_items_summary = []
+        total_shipped = Decimal('0')
+        total_quantity = Decimal('0')
+        
+        for oa_line in oa.line_items.all():
+            line_id = str(oa_line.id)
+            total_qty = oa_line.quantity
+            shipped_qty = shipped_by_line.get(line_id, Decimal('0'))
+            remaining_qty = max(Decimal('0'), total_qty - shipped_qty)
+            
+            total_quantity += total_qty
+            total_shipped += shipped_qty
+            
+            # Get dispatch history for this line item
+            dispatches = []
+            for backorder in order.back_orders.filter(
+                line_items__oa_line_item=oa_line
+            ).distinct().select_related('invoice'):
+                try:
+                    bo_item = backorder.line_items.get(oa_line_item=oa_line)
+                    dispatches.append({
+                        'back_order_number': backorder.back_order_number,
+                        'quantity': float(bo_item.quantity_dispatching),
+                        'status': backorder.status,
+                        'invoice_number': backorder.invoice.invoice_number if backorder.invoice else None,
+                        'created_at': backorder.created_at.isoformat() if backorder.created_at else None
+                    })
+                except Exception:
+                    # Should not happen, but just in case
+                    pass
+            
+            line_items_summary.append({
+                'oa_line_item_id': line_id,
+                'description': oa_line.description or oa_line.product_name_snapshot or '',
+                'part_no': oa_line.part_no or '',
+                'total_quantity': float(total_qty),
+                'shipped_quantity': float(shipped_qty),
+                'remaining_quantity': float(remaining_qty),
+                'unit': oa_line.unit or 'NOS',
+                'unit_price': float(oa_line.unit_price),
+                'dispatches': dispatches
+            })
+        
+        # Calculate invoice status dynamically
+        if total_shipped == 0:
+            invoice_status = 'NOT_INVOICED'
+        elif total_shipped >= total_quantity:
+            invoice_status = 'FULLY_INVOICED'
+        else:
+            invoice_status = 'PARTIALLY_INVOICED'
+        
+        total_qty_float = float(total_quantity)
+        total_shipped_float = float(total_shipped)
+        
+        return Response({
+            'order_id': str(order.id),
+            'order_number': order.order_number,
+            'order_category': order.order_category,
+            'invoice_status': invoice_status,
+            'total_quantity': total_qty_float,
+            'shipped_quantity': total_shipped_float,
+            'completion_percentage': round((total_shipped_float / total_qty_float * 100), 2) if total_qty_float > 0 else 0,
+            'line_items': line_items_summary
+        })

@@ -21,6 +21,7 @@ MODULE_REGISTRY = [
     {"key": "quotation","label": "Quotations"},
     {"key": "oa",       "label": "Order Acknowledgements"},
     {"key": "proforma", "label": "Proforma Invoices"},
+    {"key": "logistics", "label": "Logistics"},  # ← ADD THIS LINE
 ]
 
 # These select_related paths are added automatically when a module is included.
@@ -32,6 +33,7 @@ MODULE_JOINS = {
     "proforma":  ["quotation", "quotation__oa",
                   "quotation__oa__order",
                   "quotation__oa__order__proforma"],
+    "logistics": ["quotation", "quotation__oa", "quotation__oa__order"],  # ← ADD THIS LINE              
 }
 
 FIELD_REGISTRY = {
@@ -452,6 +454,279 @@ FIELD_REGISTRY = {
             "path":  "quotation__oa__order__proforma__created_at",
             "label": "Proforma Created",
             "type":  "datetime",
+        },
+    },
+
+        # ─────────────────────────────────────────────────────────────────────────
+    # LOGISTICS (BackOrders, Invoices, Delivery Challans, Packaging Slips)
+    # ─────────────────────────────────────────────────────────────────────────
+    "logistics": {
+        # ========== BACK ORDER FIELDS ==========
+        "back_order_number": {
+            "path":  "quotation__oa__order__back_orders__back_order_number",
+            "label": "Back Order No.",
+            "type":  "str",
+        },
+        "back_order_status": {
+            "path":  "quotation__oa__order__back_orders__status",
+            "label": "Back Order Status",
+            "type":  "choice",
+            "choices": [
+                ("PENDING", "Pending"),
+                ("INVOICED", "Invoiced"),
+                ("IN_TRANSIT", "In Transit"),
+                ("OUT_FOR_DELIVERY", "Out for Delivery"),
+                ("DELIVERED", "Delivered"),
+                ("DELAYED", "Delayed"),
+                ("RETURNED", "Returned"),
+                ("CANCELLED", "Cancelled"),
+            ],
+        },
+        "back_order_reason": {
+            "path":  "quotation__oa__order__back_orders__reason",
+            "label": "Back Order Reason",
+            "type":  "str",
+        },
+        "expected_dispatch_date": {
+            "path":  "quotation__oa__order__back_orders__expected_dispatch_date",
+            "label": "Expected Dispatch Date",
+            "type":  "date",
+        },
+        "back_order_created_at": {
+            "path":  "quotation__oa__order__back_orders__created_at",
+            "label": "Back Order Created",
+            "type":  "datetime",
+        },
+        
+        # ========== TRACKING FIELDS ==========
+        "tracking_status": {
+            "path":  "quotation__oa__order__back_orders__tracking_status",
+            "label": "Tracking Status",
+            "type":  "str",
+        },
+        "current_location": {
+            "path":  "quotation__oa__order__back_orders__current_location",
+            "label": "Current Location",
+            "type":  "str",
+        },
+        "estimated_delivery_date": {
+            "path":  "quotation__oa__order__back_orders__etd",
+            "label": "Estimated Delivery Date",
+            "type":  "date",
+        },
+        "tracking_remark": {
+            "path":  "quotation__oa__order__back_orders__tracking_remark",
+            "label": "Tracking Remark",
+            "type":  "str",
+        },
+        
+        # ========== INVOICE FIELDS ==========
+        "invoice_number": {
+            "path":  "quotation__oa__order__invoices__invoice_number",
+            "label": "Invoice No.",
+            "type":  "str",
+        },
+        "invoice_status": {
+            "path":  "quotation__oa__order__invoices__status",
+            "label": "Invoice Status",
+            "type":  "choice",
+            "choices": [
+                ("DRAFT", "Draft"),
+                ("CONFIRMED", "Confirmed"),
+                ("CANCELLED", "Cancelled"),
+            ],
+        },
+        "invoice_date": {
+            "path":  "quotation__oa__order__invoices__invoice_date",
+            "label": "Invoice Date",
+            "type":  "date",
+        },
+        "invoice_po_number": {
+            "path":  "quotation__oa__order__invoices__po_number",
+            "label": "PO Number (Invoice)",
+            "type":  "str",
+        },
+        "invoice_po_date": {
+            "path":  "quotation__oa__order__invoices__po_date",
+            "label": "PO Date",
+            "type":  "date",
+        },
+        "amd_number": {
+            "path":  "quotation__oa__order__invoices__amd_number",
+            "label": "AMD Number",
+            "type":  "str",
+        },
+        "amd_date": {
+            "path":  "quotation__oa__order__invoices__amd_date",
+            "label": "AMD Date",
+            "type":  "date",
+        },
+        "invoice_location": {
+            "path":  "quotation__oa__order__invoices__location",
+            "label": "Location",
+            "type":  "str",
+        },
+        "invoice_type": {
+            "path":  "quotation__oa__order__invoices__invoice_type",
+            "label": "Invoice Type",
+            "type":  "str",
+        },
+        
+        # ========== FINANCIAL FIELDS ==========
+        "net_amount": {
+            "path":  "quotation__oa__order__invoices__net_amount",
+            "label": "Net Amount",
+            "type":  "decimal",
+        },
+        "tax_amount": {
+            "path":  "quotation__oa__order__invoices__tax_amount",
+            "label": "Tax Amount",
+            "type":  "decimal",
+        },
+        "grand_total": {
+            "path":  "quotation__oa__order__invoices__grand_total",
+            "label": "Grand Total",
+            "type":  "decimal",
+        },
+        "payment_due_date": {
+            "path":  "quotation__oa__order__invoices__payment_due_date",
+            "label": "Payment Due Date",
+            "type":  "date",
+        },
+        
+        # ========== TRANSPORT & LOGISTICS ==========
+        "date_of_removal": {
+            "path":  "quotation__oa__order__invoices__date_of_removal",
+            "label": "Date of Removal",
+            "type":  "date",
+        },
+        "time_of_removal": {
+            "path":  "quotation__oa__order__invoices__time_of_removal",
+            "label": "Time of Removal",
+            "type":  "str",
+        },
+        "mode_of_transport": {
+            "path":  "quotation__oa__order__invoices__mode_of_transport",
+            "label": "Mode of Transport",
+            "type":  "str",
+        },
+        "transporter": {
+            "path":  "quotation__oa__order__invoices__transporter",
+            "label": "Transporter",
+            "type":  "str",
+        },
+        "vehicle_number": {
+            "path":  "quotation__oa__order__invoices__vehicle_number",
+            "label": "Vehicle Number",
+            "type":  "str",
+        },
+        "lr_number": {
+            "path":  "quotation__oa__order__invoices__lr_number",
+            "label": "LR Number",
+            "type":  "str",
+        },
+        
+        # ========== CONTACT & GST ==========
+        "contact_name": {
+            "path":  "quotation__oa__order__invoices__contact_name",
+            "label": "Contact Person",
+            "type":  "str",
+        },
+        "contact_number": {
+            "path":  "quotation__oa__order__invoices__contact_number",
+            "label": "Contact Number",
+            "type":  "str",
+        },
+        "contact_email": {
+            "path":  "quotation__oa__order__invoices__contact_email",
+            "label": "Contact Email",
+            "type":  "str",
+        },
+        "consignee_gst": {
+            "path":  "quotation__oa__order__invoices__consignee_gst",
+            "label": "Consignee GST",
+            "type":  "str",
+        },
+        "consignor_gst": {
+            "path":  "quotation__oa__order__invoices__consignor_gst",
+            "label": "Consignor GST",
+            "type":  "str",
+        },
+        "state_code": {
+            "path":  "quotation__oa__order__invoices__state_code",
+            "label": "State Code",
+            "type":  "str",
+        },
+        
+        # ========== DELIVERY CHALLAN ==========
+        "challan_number": {
+            "path":  "quotation__oa__order__invoices__delivery_challan__challan_number",
+            "label": "Delivery Challan No.",
+            "type":  "str",
+        },
+        "challan_date": {
+            "path":  "quotation__oa__order__invoices__delivery_challan__challan_date",
+            "label": "Challan Date",
+            "type":  "date",
+        },
+        "challan_remark": {
+            "path":  "quotation__oa__order__invoices__delivery_challan__remark",
+            "label": "Challan Remark",
+            "type":  "str",
+        },
+        
+        # ========== PACKAGING SLIP ==========
+        "packing_list_number": {
+            "path":  "quotation__oa__order__invoices__packaging_slip__packing_list_number",
+            "label": "Packing List No.",
+            "type":  "str",
+        },
+        "no_of_packages": {
+            "path":  "quotation__oa__order__invoices__packaging_slip__no_of_packages",
+            "label": "Number of Packages",
+            "type":  "int",
+        },
+        "consignee_name": {
+            "path":  "quotation__oa__order__invoices__packaging_slip__consignee_name",
+            "label": "Consignee Name",
+            "type":  "str",
+        },
+        "consignee_address": {
+            "path":  "quotation__oa__order__invoices__packaging_slip__consignee_address",
+            "label": "Consignee Address",
+            "type":  "str",
+        },
+        
+        # ========== LINE ITEM DETAILS (Dispatched quantities) ==========
+        "dispatched_quantity": {
+            "path":  "quotation__oa__order__back_orders__line_items__quantity_dispatching",
+            "label": "Dispatched Quantity",
+            "type":  "decimal",
+        },
+        "dispatched_unit_price": {
+            "path":  "quotation__oa__order__back_orders__line_items__unit_price",
+            "label": "Unit Price (Dispatched)",
+            "type":  "decimal",
+        },
+        "dispatched_description": {
+            "path":  "quotation__oa__order__back_orders__line_items__description",
+            "label": "Item Description",
+            "type":  "str",
+        },
+        "dispatched_part_no": {
+            "path":  "quotation__oa__order__back_orders__line_items__part_no",
+            "label": "Part No.",
+            "type":  "str",
+        },
+        "dispatched_hsn_code": {
+            "path":  "quotation__oa__order__back_orders__line_items__hsn_code",
+            "label": "HSN Code",
+            "type":  "str",
+        },
+        "dispatched_tax_percent": {
+            "path":  "quotation__oa__order__back_orders__line_items__tax_percent",
+            "label": "Tax %",
+            "type":  "decimal",
         },
     },
 }
