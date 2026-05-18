@@ -10,3 +10,4 @@ gunicorn
 django-storages[azure]
 playwright
 pymupdf
+openpyxl
