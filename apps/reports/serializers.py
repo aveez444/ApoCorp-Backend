@@ -48,4 +48,5 @@ class VisitReportListSerializer(serializers.ModelSerializer):
             'id', 'visit_number', 'date', 'type_of_report',
             'company_name', 'department', 'author',
             'attendants', 'subject', 'agenda', 'created_at',
+            'poc_email', 'poc_contact_no', 'prospective_value',  # Add new fields here
         )

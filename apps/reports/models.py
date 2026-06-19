@@ -19,6 +19,11 @@ class VisitReport(TenantModelMixin):
     agenda = models.TextField(blank=True)
     details_of_meeting = models.TextField(blank=True)
     remarks = models.TextField(blank=True)
+    
+    # New fields
+    poc_email = models.EmailField(max_length=254, blank=True, null=True, verbose_name="POC Email")
+    poc_contact_no = models.CharField(max_length=20, blank=True, null=True, verbose_name="POC Contact Number")
+    prospective_value = models.DecimalField(max_digits=15, decimal_places=2, blank=True, null=True, verbose_name="Prospective Value")
 
     created_by = models.ForeignKey(
         User, on_delete=models.SET_NULL, null=True, blank=True,
