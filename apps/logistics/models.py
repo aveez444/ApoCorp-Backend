@@ -372,3 +372,5 @@ class BackOrderLineItem(models.Model):
             f"{self.back_order.back_order_number} — "
             f"{self.description} × {self.quantity_dispatching}"
         )
+    
+from .einvoice_models import TenantGSPConfig, EInvoiceRecord  # noqa

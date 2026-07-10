@@ -36,6 +36,14 @@ urlpatterns = [
     path('api/custom-reports/', include('apps.custom_reports.urls')),  # Changed from 'api/reports/'
     path('api/logistics/', include('apps.logistics.urls')),
     path('api/logistics/dashboard/', include('apps.logistics_dashboard.urls')),
+    path('api/vendors/',   include('apps.vendors.urls')),
+    path('api/inventory/', include('apps.inventory.urls')),
+    path('api/purchase/',  include('apps.purchase.urls')),
+    path('api/qc/',        include('apps.qc.urls')),
+    # Add to your main urlpatterns:
+    path('api/projects/', include('apps.projects.urls')),
+    path('api/engineering/', include('apps.engineering.urls')),
+    path('api/mrp/', include('apps.mrp.urls')),
 ]
 
 urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

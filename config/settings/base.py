@@ -57,6 +57,13 @@ INSTALLED_APPS = [
     'apps.documents',
     'apps.logistics',
     'apps.logistics_dashboard',
+    'apps.vendors',
+    'apps.inventory',
+    'apps.purchase',
+    'apps.qc',
+    'apps.projects',
+    'apps.engineering',
+    'apps.mrp',
 
     'storages',
 ]

@@ -1,6 +1,9 @@
 # apps/logistics/views.py
 
+from __future__ import annotations
 from rest_framework import status
+from django.http import HttpResponse, Http404
+
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -933,3 +936,374 @@ class DeliveryChallanViewSet(ModelPermissionMixin, TenantModelViewSet):
             queryset = queryset.filter(invoice__id=invoice_id)
 
         return queryset
+    
+
+# apps/logistics/invoice_pdf_view.py
+#
+# Generates a GST Tax Invoice PDF using the same two-stage pipeline as
+# quotation/proforma PDFs:
+#   Stage 1 — Playwright renders invoice.html → content PDF
+#   Stage 2 — PyMuPDF overlays content PDF on tenant's letterhead PDF
+#
+# Wire up in apps/logistics/urls.py:
+#   path('invoices/<uuid:pk>/pdf/', InvoicePDFView.as_view(), name='invoice-pdf'),
+#
+# Or add as a @action in SalesInvoiceViewSet:
+#   @action(detail=True, methods=['get'], url_path='pdf')
+#   def pdf(self, request, pk=None): ...  (see bottom of file for snippet)
+
+
+
+
+
+from django.template.loader import render_to_string
+from django.utils.dateformat import format as date_format
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.views import APIView
+
+from apps.documents.pdf_engine import generate_quotation_pdf, split_gst, amount_in_words
+from apps.documents.models import TenantLetterhead
+from .models import SalesInvoice
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Helpers
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _fmt_date(d):
+    """Return DD-Mon-YYYY string or empty string."""
+    if not d:
+        return ""
+    try:
+        return date_format(d, "d M Y")
+    except Exception:
+        return str(d)
+
+
+def _fmt_time(t):
+    """Return HH:MM string or empty string."""
+    if not t:
+        return ""
+    try:
+        return t.strftime("%H:%M")
+    except Exception:
+        return str(t)
+
+
+def _build_gst_rows(line_items, intra_state: bool, cgst_rate, sgst_rate, igst_rate):
+    """
+    Group line items by HSN code and build the GST breakdown rows
+    used in the bottom-left summary table of the invoice.
+    Each row: { hsn, taxable, cgst_rate, cgst, sgst_rate, sgst, igst_rate, igst, tax_total }
+    """
+    from collections import defaultdict
+    buckets = defaultdict(lambda: {
+        "taxable": Decimal("0"),
+        "cgst": Decimal("0"),
+        "sgst": Decimal("0"),
+        "igst": Decimal("0"),
+        "tax_total": Decimal("0"),
+    })
+
+    for item in line_items:
+        hsn = getattr(item, "hsn_code", "") or "—"
+        qty = Decimal(str(getattr(item, "quantity", 0) or 0))
+        price = Decimal(str(getattr(item, "unit_price", 0) or 0))
+        tax_pct = Decimal(str(getattr(item, "tax_percent", 0) or 0))
+
+        taxable = (qty * price).quantize(Decimal("0.01"))
+        tax_amt = (taxable * tax_pct / 100).quantize(Decimal("0.01"))
+
+        buckets[hsn]["taxable"] += taxable
+        buckets[hsn]["tax_total"] += tax_amt
+
+        if intra_state:
+            half = (tax_amt / 2).quantize(Decimal("0.01"))
+            buckets[hsn]["cgst"] += half
+            buckets[hsn]["sgst"] += half
+        else:
+            buckets[hsn]["igst"] += tax_amt
+
+    rows = []
+    for hsn, vals in buckets.items():
+        rows.append({
+            "hsn": hsn,
+            "taxable": vals["taxable"],
+            "cgst_rate": cgst_rate,
+            "cgst": vals["cgst"],
+            "sgst_rate": sgst_rate,
+            "sgst": vals["sgst"],
+            "igst_rate": igst_rate,
+            "igst": vals["igst"],
+            "tax_total": vals["tax_total"],
+        })
+    return rows
+
+
+def _enrich_line_items(items, intra_state: bool, cgst_rate, sgst_rate, igst_rate):
+    """
+    Add per-line tax split fields to each line item for the template.
+    Returns a list of dicts (safe to iterate in template).
+    """
+    enriched = []
+    for item in items:
+        qty = Decimal(str(getattr(item, "quantity", 0) or 0))
+        price = Decimal(str(getattr(item, "unit_price", 0) or 0))
+        tax_pct = Decimal(str(getattr(item, "tax_percent", 0) or 0))
+
+        taxable = (qty * price).quantize(Decimal("0.01"))
+        tax_amt = (taxable * tax_pct / 100).quantize(Decimal("0.01"))
+        total   = (taxable + tax_amt).quantize(Decimal("0.01"))
+
+        if intra_state:
+            half = (tax_amt / 2).quantize(Decimal("0.01"))
+            cgst_line = half
+            sgst_line = half
+            igst_line = Decimal("0")
+        else:
+            cgst_line = Decimal("0")
+            sgst_line = Decimal("0")
+            igst_line = tax_amt
+
+        enriched.append({
+            "job_code":         getattr(item, "job_code", ""),
+            "customer_part_no": getattr(item, "customer_part_no", ""),
+            "part_no":          getattr(item, "part_no", ""),
+            "description":      getattr(item, "description", ""),
+            "hsn_code":         getattr(item, "hsn_code", ""),
+            "quantity":         getattr(item, "quantity", 0),
+            "unit":             getattr(item, "unit", ""),
+            "unit_price":       getattr(item, "unit_price", 0),
+            "tax_group_code":   getattr(item, "tax_group_code", ""),
+            "tax_percent":      tax_pct,
+            "taxable_amount":   taxable,
+            "cgst_amount":      cgst_line,
+            "sgst_amount":      sgst_line,
+            "igst_amount":      igst_line,
+            "tax_amount":       tax_amt,
+            "total":            total,
+        })
+    return enriched
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Context builder — shared by both the APIView and the @action snippet
+# ─────────────────────────────────────────────────────────────────────────────
+
+def build_invoice_context(invoice: SalesInvoice) -> dict:
+    """
+    Build the full template context dict for invoice.html.
+    Call this from the view and pass the result to render_to_string().
+    """
+    order     = invoice.order
+    oa        = order.oa
+    quotation = oa.quotation
+    customer  = quotation.enquiry.customer
+
+    # ── Letterhead / company info ─────────────────────────────────────────
+    try:
+        lh = order.tenant.letterhead
+    except Exception:
+        lh = None
+
+    company_name    = (lh and lh.company_name)    or order.tenant.company_name or ""
+    company_address = (lh and lh.company_address) or ""
+    company_phone   = (lh and lh.company_phone)   or ""
+    company_email   = (lh and lh.company_email)   or ""
+    company_gstin   = (lh and lh.company_gstin)   or ""
+    company_pan     = (lh and lh.company_pan)      or ""
+    company_state   = (lh and lh.company_state)   or ""
+
+    bank_name           = (lh and lh.bank_name)           or ""
+    bank_account_name   = (lh and lh.bank_account_name)   or ""
+    bank_branch         = (lh and lh.bank_branch)         or ""
+    bank_account_number = (lh and lh.bank_account_number) or ""
+    bank_ifsc           = (lh and lh.bank_ifsc)           or ""
+    bank_micr           = (lh and lh.bank_micr)           or ""
+
+    # ── GST split ─────────────────────────────────────────────────────────
+    line_items_qs = invoice.line_items.all()
+
+    customer_state = (invoice.bill_to or {}).get("state", "") or customer.state or ""
+
+    cgst, sgst, igst, cgst_rate, sgst_rate, igst_rate = split_gst(
+        line_items_qs, customer_state, company_state
+    )
+    intra_state = bool(cgst)
+
+    # Net / tax / grand
+    net_amount  = sum(
+        Decimal(str(item.unit_price)) * Decimal(str(item.quantity))
+        for item in line_items_qs
+    ).quantize(Decimal("0.01"))
+    tax_amount  = (cgst + sgst + igst).quantize(Decimal("0.01"))
+    grand_total = (net_amount + tax_amount).quantize(Decimal("0.01"))
+
+    # ── Per-line enrichment ───────────────────────────────────────────────
+    enriched_items = _enrich_line_items(
+        line_items_qs, intra_state, cgst_rate, sgst_rate, igst_rate
+    )
+
+    # ── GST summary rows (bottom-left table) ─────────────────────────────
+    gst_rows = _build_gst_rows(
+        line_items_qs, intra_state, cgst_rate, sgst_rate, igst_rate
+    )
+
+    # ── Back-order reference ──────────────────────────────────────────────
+    back_order_number = ""
+    if invoice.back_order:
+        back_order_number = invoice.back_order.back_order_number
+
+    return {
+        # Core objects
+        "invoice":          invoice,
+        "order":            order,
+        "customer":         customer,
+
+        # Formatted dates
+        "invoice_date":     _fmt_date(invoice.invoice_date),
+        "payment_due_date": _fmt_date(invoice.payment_due_date),
+        "po_date":          _fmt_date(invoice.po_date),
+        "amd_date":         _fmt_date(invoice.amd_date),
+        "date_of_removal":  _fmt_date(invoice.date_of_removal),
+        "time_of_removal":  _fmt_time(invoice.time_of_removal),
+
+        # Reference numbers
+        "oa_number":          oa.oa_number,
+        "order_number":       order.order_number,
+        "back_order_number":  back_order_number,
+
+        # Company / letterhead
+        "company_name":    company_name,
+        "company_address": company_address,
+        "company_phone":   company_phone,
+        "company_email":   company_email,
+        "company_gstin":   company_gstin,
+        "company_pan":     company_pan,
+        "company_state":   company_state,
+
+        # Bank
+        "bank_name":           bank_name,
+        "bank_account_name":   bank_account_name,
+        "bank_branch":         bank_branch,
+        "bank_account_number": bank_account_number,
+        "bank_ifsc":           bank_ifsc,
+        "bank_micr":           bank_micr,
+
+        # Customer / addresses
+        "customer_name": customer.company_name,
+        "bill_to":        invoice.bill_to or {},
+        "ship_to":        invoice.ship_to or {},
+
+        # Line items (enriched dicts — NOT ORM objects)
+        "line_items": enriched_items,
+
+        # GST totals
+        "net_amount":   net_amount,
+        "cgst_amount":  cgst,
+        "sgst_amount":  sgst,
+        "igst_amount":  igst,
+        "cgst_rate":    cgst_rate,
+        "sgst_rate":    sgst_rate,
+        "igst_rate":    igst_rate,
+        "tax_amount":   tax_amount,
+        "grand_total":  grand_total,
+        "gst_rows":     gst_rows,
+
+        # Amount in words
+        "amount_in_words": amount_in_words(grand_total, order.currency or "INR"),
+        "invoice_currency": order.currency or "INR",
+
+        # Misc
+        "prepared_by": "",  # Override with request.user.get_full_name() in view if desired
+    }
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# APIView  (standalone — add to urls.py if not using ViewSet @action)
+# ─────────────────────────────────────────────────────────────────────────────
+
+class InvoicePDFView(APIView):
+    """
+    GET /api/logistics/invoices/<pk>/pdf/
+    Returns the invoice as a PDF download (or inline display).
+
+    Query param:  ?inline=1   → Content-Disposition: inline (browser renders)
+                  (default)   → Content-Disposition: attachment (download)
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, pk):
+        try:
+            invoice = (
+                SalesInvoice.objects
+                .select_related(
+                    "order__oa__quotation__enquiry__customer",
+                    "order__tenant__letterhead",
+                    "back_order",
+                )
+                .get(pk=pk, tenant=request.tenant)
+            )
+        except SalesInvoice.DoesNotExist:
+            raise Http404
+
+        # ── Build context & render HTML ────────────────────────────────
+        ctx = build_invoice_context(invoice)
+        ctx["prepared_by"] = request.user.get_full_name() or request.user.username
+
+        html = render_to_string("documents/invoice.html", ctx, request=request)
+
+        # ── PDF generation (Stage 1 + 2) ──────────────────────────────
+        lh_file = None
+        try:
+            lh_file = invoice.order.tenant.letterhead.letterhead_pdf
+        except Exception:
+            pass
+
+        base_url = request.build_absolute_uri("/")
+        pdf_bytes = generate_quotation_pdf(html, base_url, lh_file)
+
+        # ── HTTP response ──────────────────────────────────────────────
+        inline  = request.query_params.get("inline", "0") in ("1", "true", "yes")
+        disposition = "inline" if inline else "attachment"
+        filename = f"{invoice.invoice_number}.pdf"
+
+        response = HttpResponse(pdf_bytes, content_type="application/pdf")
+        response["Content-Disposition"] = f'{disposition}; filename="{filename}"'
+        return response
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# @action snippet — paste into SalesInvoiceViewSet in apps/logistics/views.py
+# ─────────────────────────────────────────────────────────────────────────────
+"""
+from .invoice_pdf_view import build_invoice_context
+from apps.documents.pdf_engine import generate_quotation_pdf
+from django.template.loader import render_to_string
+
+# Inside SalesInvoiceViewSet:
+
+    @action(detail=True, methods=['get'], url_path='pdf')
+    def pdf(self, request, pk=None):
+        invoice = self.get_object()
+
+        ctx = build_invoice_context(invoice)
+        ctx['prepared_by'] = request.user.get_full_name() or request.user.username
+
+        html = render_to_string('documents/invoice.html', ctx, request=request)
+
+        lh_file = None
+        try:
+            lh_file = invoice.order.tenant.letterhead.letterhead_pdf
+        except Exception:
+            pass
+
+        pdf_bytes = generate_quotation_pdf(html, request.build_absolute_uri('/'), lh_file)
+
+        inline = request.query_params.get('inline', '0') in ('1', 'true', 'yes')
+        disposition = 'inline' if inline else 'attachment'
+
+        response = HttpResponse(pdf_bytes, content_type='application/pdf')
+        response['Content-Disposition'] = f'{disposition}; filename="{invoice.invoice_number}.pdf"'
+        return response
+"""
