@@ -12,6 +12,7 @@ from decimal import Decimal
 
 from apps.quotations.models import Quotation
 from apps.proforma.models import ProformaInvoice
+from apps.orders.models import OrderAcknowledgement
 from apps.accounts.models import TenantUser
 from .models import TenantLetterhead
 from .pdf_engine import generate_quotation_pdf, split_gst, amount_in_words
@@ -47,11 +48,11 @@ def _build_quotation_context(quotation: Quotation) -> dict:
     company_state = (lh and lh.company_state) or ''
 
     # ── Bank details ──────────────────────────────────────────────────────
-    bank_name = (lh and lh.bank_name) or ''
-    bank_account_name = (lh and lh.bank_account_name) or ''
-    bank_branch = (lh and lh.bank_branch) or ''
-    bank_account_number = (lh and lh.bank_account_number) or ''
-    bank_ifsc = (lh and lh.bank_ifsc) or ''
+    bank_name = (lh and lh.bank_name) or 'Bank Of India'
+    bank_account_name = (lh and lh.bank_account_name) or 'Steam Equipments Limited'
+    bank_branch = (lh and lh.bank_branch) or 'Wanawadi Branch, Pune - 411048'
+    bank_account_number = (lh and lh.bank_account_number) or '052030150000017'
+    bank_ifsc = (lh and lh.bank_ifsc) or 'BKID0000520'
     bank_micr = (lh and lh.bank_micr) or ''
 
     # ── Billing address ───────────────────────────────────────────────────
@@ -199,11 +200,11 @@ def _build_proforma_context(proforma: ProformaInvoice) -> dict:
     company_state = (lh and lh.company_state) or ''
 
     # Bank details
-    bank_name = (lh and lh.bank_name) or ''
-    bank_account_name = (lh and lh.bank_account_name) or ''
-    bank_branch = (lh and lh.bank_branch) or ''
-    bank_account_number = (lh and lh.bank_account_number) or ''
-    bank_ifsc = (lh and lh.bank_ifsc) or ''
+    bank_name = (lh and lh.bank_name) or 'Bank Of India'
+    bank_account_name = (lh and lh.bank_account_name) or 'Steam Equipments Limited'
+    bank_branch = (lh and lh.bank_branch) or 'Wanawadi Branch, Pune - 411048'
+    bank_account_number = (lh and lh.bank_account_number) or '052030150000017'
+    bank_ifsc = (lh and lh.bank_ifsc) or 'BKID0000520'
     bank_micr = (lh and lh.bank_micr) or ''
 
     # Billing address
@@ -526,6 +527,290 @@ class ProformaPDFView(APIView):
 
         # 6. Return PDF
         filename = f"Proforma_{proforma.proforma_number}.pdf"
+        as_download = request.query_params.get('download', 'false').lower() == 'true'
+        disposition = 'attachment' if as_download else 'inline'
+
+        response = StreamingHttpResponse(
+            streaming_content=iter([pdf_bytes]),
+            content_type='application/pdf',
+        )
+        response['Content-Disposition'] = (
+            f'{disposition}; filename="{filename}"; '
+            f"filename*=UTF-8''{filename}"
+        )
+        response['Content-Length'] = len(pdf_bytes)
+        response['X-Frame-Options'] = 'SAMEORIGIN'
+        response['Cache-Control'] = 'private, no-transform'
+        return response
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Context builder - Order Acknowledgement
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _build_oa_context(oa: OrderAcknowledgement) -> dict:
+    """Assemble every variable the oa.html template needs."""
+
+    quotation = oa.quotation
+    enquiry = quotation.enquiry if quotation else None
+    customer = enquiry.customer if enquiry else None
+    tenant = oa.tenant
+
+    # ── Letterhead config ─────────────────────────────────────────────────────
+    try:
+        lh = tenant.letterhead
+    except TenantLetterhead.DoesNotExist:
+        lh = None
+
+    accent_color = (lh.accent_color if lh else None) or '#122C41'
+
+    # Company info
+    company_name = (lh and lh.company_name) or getattr(tenant, 'company_name', '') or ''
+    company_address = (lh and lh.company_address) or getattr(tenant, 'company_address', '') or ''
+    company_phone = (lh and lh.company_phone) or ''
+    company_email = (lh and lh.company_email) or ''
+    company_gstin = (lh and lh.company_gstin) or getattr(tenant, 'gstin', '') or ''
+    company_pan = (lh and lh.company_pan) or ''
+    company_state = (lh and lh.company_state) or ''
+
+    # Bank details
+    bank_name = (lh and lh.bank_name) or 'Bank Of India'
+    bank_account_name = (lh and lh.bank_account_name) or 'Steam Equipments Limited'
+    bank_branch = (lh and lh.bank_branch) or 'Wanawadi Branch, Pune - 411048'
+    bank_account_number = (lh and lh.bank_account_number) or '052030150000017'
+    bank_ifsc = (lh and lh.bank_ifsc) or 'BKID0000520'
+    bank_micr = (lh and lh.bank_micr) or ''
+
+    # Billing address
+    billing_address = None
+    if customer:
+        billing_address = (
+            customer.addresses.filter(address_type='BILLING', is_default=True).first()
+            or customer.addresses.filter(address_type='BILLING').first()
+        )
+
+    # ── Line items ────────────────────────────────────────────────────────────
+    line_items_qs = oa.line_items.all()
+    line_items_ctx = []
+    sub_total = Decimal('0')
+    total_tax = Decimal('0')
+
+    for item in line_items_qs:
+        qty = Decimal(str(item.quantity or 0))
+        price = Decimal(str(item.unit_price or 0))
+        amount = qty * price
+        sub_total += amount
+        total_tax += Decimal(str(item.tax_amount or 0))
+
+        line_items_ctx.append({
+            'job_code': item.job_code or '',
+            'customer_part_no': item.customer_part_no or '',
+            'part_no': item.part_no or '',
+            'description': item.description or '',
+            'hsn_code': item.hsn_code or '',
+            'quantity': item.quantity,
+            'unit': item.unit or 'NOS',
+            'unit_price': item.unit_price,
+            'amount': amount,
+            'tax_percent': item.tax_percent,
+            'tax_amount': item.tax_amount,
+            'line_total': item.total,
+        })
+
+    # ── GST split ─────────────────────────────────────────────────────────────
+    cust_state = (customer.state if customer else '').strip().lower() if customer else ''
+    comp_state = (company_state or '').strip().lower()
+    intra = bool(cust_state and comp_state and cust_state == comp_state)
+
+    if intra:
+        cgst = (total_tax / 2).quantize(Decimal('0.01'))
+        sgst = (total_tax / 2).quantize(Decimal('0.01'))
+        igst = Decimal('0')
+        eff_rate = ((total_tax / sub_total) * 100) if sub_total else Decimal('0')
+        cgst_rate = (eff_rate / 2).quantize(Decimal('0.01'))
+        sgst_rate = (eff_rate / 2).quantize(Decimal('0.01'))
+        igst_rate = Decimal('0')
+    else:
+        cgst = Decimal('0')
+        sgst = Decimal('0')
+        igst = total_tax
+        cgst_rate = Decimal('0')
+        sgst_rate = Decimal('0')
+        igst_rate = ((total_tax / sub_total) * 100) if sub_total else Decimal('0')
+        igst_rate = igst_rate.quantize(Decimal('0.01'))
+
+    # ── Prepared by ───────────────────────────────────────────────────────────
+    prepared_by = ''
+    if enquiry and enquiry.assigned_to:
+        prepared_by = (
+            enquiry.assigned_to.get_full_name()
+            or enquiry.assigned_to.username
+        )
+
+    # ── Date formatter ────────────────────────────────────────────────────────
+    def fmt_date(d):
+        if not d:
+            return '—'
+        return d.strftime('%d %b %Y') if hasattr(d, 'strftime') else str(d)
+
+    oa_number = oa.oa_number or ''
+    enquiry_number = enquiry.enquiry_number if enquiry else ''
+    quotation_number = quotation.quotation_number if quotation else ''
+
+    transport = oa.transport_details or {}
+    billing_snap = oa.billing_snapshot or {}
+    shipping_snap = oa.shipping_snapshot or {}
+    commercial = getattr(oa, 'commercial_terms', None)
+    q_terms = getattr(quotation, 'terms', None) if quotation else None
+    commercial_ctx = {
+        'payment_terms': (commercial.payment_terms if commercial and commercial.payment_terms else '') or (q_terms.payment_terms if q_terms else ''),
+        'delivery': q_terms.delivery if q_terms else '',
+        'warranty': (commercial.warranty if commercial and commercial.warranty else '') or (q_terms.warranty if q_terms else ''),
+        'price_basis': (commercial.price_basis if commercial and commercial.price_basis else '') or (q_terms.price_basis if q_terms else ''),
+        'freight': (commercial.freight_charges if commercial and commercial.freight_charges else '') or (q_terms.freight if q_terms else ''),
+        'insurance': (commercial.insurance if commercial and commercial.insurance else '') or (q_terms.insurance if q_terms else ''),
+        'ld_clause': (commercial.ld_clause if commercial and commercial.ld_clause else '') or 'Not Applicable',
+        'test_certificate': (commercial.test_certificate if commercial and commercial.test_certificate else '') or 'Required',
+        'validity': q_terms.validity if q_terms else '',
+        'remarks': q_terms.remarks if q_terms else '',
+    }
+
+    return {
+        # Branding
+        'accent_color': accent_color,
+
+        # Company / sender
+        'company_name': company_name,
+        'company_address': company_address,
+        'company_phone': company_phone,
+        'company_email': company_email,
+        'company_gstin': company_gstin,
+        'company_pan': company_pan,
+
+        # Bank details
+        'bank_name': bank_name,
+        'bank_account_name': bank_account_name,
+        'bank_branch': bank_branch,
+        'bank_account_number': bank_account_number,
+        'bank_ifsc': bank_ifsc,
+        'bank_micr': bank_micr,
+
+        # Document meta
+        'oa': oa,
+        'oa_number': oa_number,
+        'quotation_number': quotation_number,
+        'enquiry_number': enquiry_number,
+        'oa_date': fmt_date(oa.created_at),
+
+        # Customer
+        'customer': customer,
+        'billing_address': billing_address,
+
+        # Line items
+        'line_items': line_items_ctx,
+
+        # Tax split
+        'cgst_amount': cgst,
+        'sgst_amount': sgst,
+        'igst_amount': igst,
+        'cgst_rate': cgst_rate,
+        'sgst_rate': sgst_rate,
+        'igst_rate': igst_rate,
+        'total_tax': total_tax,
+
+        # Snapshot / related
+        'transport': transport,
+        'billing': billing_snap,
+        'shipping': shipping_snap,
+        'commercial': commercial_ctx,
+
+        # Misc
+        'prepared_by': prepared_by,
+        'amount_in_words': amount_in_words(
+            oa.total_value, oa.currency
+        ),
+    }
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Order Acknowledgement PDF view
+# ─────────────────────────────────────────────────────────────────────────────
+
+class OrderAcknowledgementPDFView(APIView):
+    """
+    GET /api/documents/oa/{id}/pdf/
+        Returns the order acknowledgement as a PDF stamped onto the tenant's letterhead.
+
+        ?download=true  → Content-Disposition: attachment (browser download)
+        (default)       → Content-Disposition: inline (iframe preview)
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, pk):
+        # 1. Fetch OA with all related data
+        try:
+            oa = (
+                OrderAcknowledgement.objects
+                .select_related(
+                    'quotation',
+                    'quotation__terms',
+                    'quotation__enquiry',
+                    'quotation__enquiry__customer',
+                    'tenant',
+                    'tenant__letterhead',
+                )
+                .prefetch_related(
+                    'line_items',
+                    'quotation__enquiry__customer__addresses',
+                )
+                .get(pk=pk, tenant=request.tenant)
+            )
+        except OrderAcknowledgement.DoesNotExist:
+            raise Http404
+
+        # 2. Check permissions
+        tenant_user = TenantUser.objects.filter(
+            user=request.user,
+            tenant=request.tenant
+        ).first()
+
+        if tenant_user and tenant_user.role == 'employee':
+            try:
+                assigned_to = oa.quotation.enquiry.assigned_to
+                if assigned_to and assigned_to != request.user:
+                    raise PermissionDenied("You can only view Order Acknowledgements assigned to you.")
+            except AttributeError:
+                raise PermissionDenied("You don't have permission to view this Order Acknowledgement.")
+
+        # 3. Build context and render HTML
+        context = _build_oa_context(oa)
+        html = render_to_string('documents/oa.html', context)
+
+        # 4. Get letterhead PDF if available
+        try:
+            lh = oa.tenant.letterhead
+            letterhead_file = lh.letterhead_pdf if lh and lh.letterhead_pdf else None
+        except TenantLetterhead.DoesNotExist:
+            letterhead_file = None
+
+        # 5. Generate PDF
+        try:
+            pdf_bytes = generate_quotation_pdf(
+                html=html,
+                base_url=request.build_absolute_uri('/'),
+                letterhead_pdf_file=letterhead_file,
+            )
+        except ImportError as exc:
+            return Response({'error': str(exc)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        except Exception as exc:
+            return Response(
+                {'error': f'PDF generation failed: {exc}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+        # 6. Return PDF
+        filename = f"OA_{oa.oa_number}.pdf"
         as_download = request.query_params.get('download', 'false').lower() == 'true'
         disposition = 'attachment' if as_download else 'inline'
 

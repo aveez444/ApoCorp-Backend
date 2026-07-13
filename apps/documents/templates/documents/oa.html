@@ -1,0 +1,842 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Order Acknowledgement - {{ oa_number }}</title>
+  <style>
+    /* =====================================================================
+       ORDER ACKNOWLEDGEMENT TEMPLATE – GREY / DARK GREY / BLACK THEME
+       • MATCHES THE LAYOUT AND STYLING OF THE QUOTATION / PROFORMA
+       • RENDERED VIA BACKEND PDF ENGINE AND OVERLAID ON LETTERHEAD
+    ===================================================================== */
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    @page {
+      size: A4;
+      margin-top: 58mm;     /* letterhead header spacing */
+      margin-bottom: 28mm;
+      margin-left: 6mm;
+      margin-right: 6mm;
+    }
+
+    body {
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+      font-size: 9.8pt;
+      color: #1e1e1e;
+      background: white;
+      line-height: 1.52;
+    }
+
+    .container {
+      width: 100%;
+    }
+
+    /* ========== HEADER (Monochrome) ========== */
+    .header {
+      border-bottom: 3px solid #2c2c2c;
+      padding-bottom: 12px;
+      margin-bottom: 24px;
+      overflow: hidden;
+    }
+
+    .header-left {
+      float: left;
+    }
+
+    .header-right {
+      float: right;
+      text-align: right;
+    }
+
+    .oa-title {
+      font-size: 24px;
+      font-weight: 700;
+      color: #1e1e1e;
+      letter-spacing: -0.5px;
+    }
+
+    .issue-date {
+      font-size: 9.5px;
+      color: #555;
+      margin-top: 6px;
+      font-weight: 500;
+    }
+
+    .oa-number {
+      font-size: 17px;
+      font-weight: 700;
+      color: #2c2c2c;
+      background: #eaeef2;
+      padding: 5px 14px;
+      border-radius: 6px;
+      display: inline-block;
+    }
+
+    .status-badge {
+      font-size: 9px;
+      margin-top: 6px;
+      font-weight: 600;
+    }
+
+    .status-badge span {
+      background: #eaeef2;
+      padding: 3px 10px;
+      border-radius: 20px;
+      text-transform: uppercase;
+    }
+
+    .clearfix {
+      clear: both;
+    }
+
+    /* ========== DETAILS BLOCKS (SIDE BY SIDE) ========== */
+    .details-row {
+      display: table;
+      width: 100%;
+      margin-bottom: 20px;
+      table-layout: fixed;
+    }
+
+    .details-col {
+      display: table-cell;
+      vertical-align: top;
+      width: 50%;
+    }
+
+    .details-col:first-child {
+      padding-right: 15px;
+      border-right: 1px solid #eaeaea;
+    }
+
+    .details-col:last-child {
+      padding-left: 15px;
+    }
+
+    .details-label {
+      font-size: 8px;
+      font-weight: 700;
+      color: #777;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 6px;
+    }
+
+    .company-name {
+      font-size: 11pt;
+      font-weight: 700;
+      color: #111;
+      margin-bottom: 4px;
+    }
+
+    .details-text {
+      font-size: 9.5pt;
+      color: #444;
+      margin-bottom: 2px;
+    }
+
+    .address-card {
+      margin-bottom: 10px;
+    }
+
+    .address-card-title {
+      font-size: 9pt;
+      font-weight: 700;
+      color: #333;
+      margin-bottom: 2px;
+      border-bottom: 1px solid #eee;
+      padding-bottom: 2px;
+    }
+
+    /* ========== ORDER REFERENCE BOX ========== */
+    .reference-box {
+      margin-bottom: 20px;
+      padding: 10px 14px;
+      background: #f4f5f7;
+      border-radius: 6px;
+      font-size: 9.5pt;
+      border-left: 3px solid #2c2c2c;
+    }
+
+    .reference-grid {
+      display: table;
+      width: 100%;
+    }
+
+    .reference-row {
+      display: table-row;
+    }
+
+    .reference-item {
+      display: table-cell;
+      width: 33.33%;
+      padding: 6px 8px;
+    }
+
+    /* ========== TABLES ========== */
+    .section-title {
+      font-size: 10px;
+      font-weight: 700;
+      color: #2c2c2c;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      margin-top: 22px;
+      margin-bottom: 8px;
+      border-bottom: 1.5px solid #2c2c2c;
+      padding-bottom: 4px;
+    }
+
+    .items-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 14px;
+      table-layout: fixed;
+    }
+
+    .items-table th {
+      background: #2c2c2c;
+      color: white;
+      font-size: 9px;
+      font-weight: 700;
+      padding: 8px 6px;
+      text-align: left;
+      text-transform: uppercase;
+      border: 1px solid #2c2c2c;
+    }
+
+    .items-table td {
+      padding: 7px 6px;
+      border: 1px solid #d4d4d4;
+      font-size: 9.2pt;
+      vertical-align: top;
+      word-wrap: break-word;
+      word-break: break-all;
+    }
+
+    /* Specific column alignments */
+    .items-table td.c, .items-table th.c { text-align: center; }
+    .items-table td.r, .items-table th.r { text-align: right; }
+
+    .part-name {
+      font-weight: normal;
+      color: #111;
+      font-size: 9.4pt;
+    }
+
+    .unit-text, .hsn-code, .desc-text {
+      font-size: 8.2px;
+      color: #555;
+      margin-top: 2px;
+      line-height: 1.4;
+    }
+
+    .job-code {
+      font-size: 7.5px;
+      background: #ececec;
+      padding: 2px 6px;
+      border-radius: 3px;
+      display: inline-block;
+      margin-top: 4px;
+    }
+
+    /* ========== TOTALS BOX ========== */
+    .totals-wrapper {
+      margin-top: 18px;
+      margin-bottom: 10px;
+      display: flex;
+      justify-content: flex-end;
+      page-break-inside: avoid;
+      break-inside: avoid;
+    }
+
+    .totals-card {
+      width: 300px;
+      background: #ffffff;
+      border: 2px solid #3a3a3a;
+      border-radius: 6px;
+      overflow: hidden;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+      page-break-inside: avoid;
+      break-inside: avoid;
+    }
+
+    .total-line {
+      display: flex;
+      justify-content: space-between;
+      padding: 6px 12px;
+      border-bottom: 1px solid #eaeaea;
+      font-size: 9.5pt;
+    }
+
+    .total-line .label {
+      font-weight: 500;
+      color: #2c2c2c;
+    }
+
+    .total-line .value {
+      font-weight: 600;
+      color: #1e1e1e;
+    }
+
+    .total-line.tax-item {
+      background: #fafafc;
+    }
+
+    .total-line.grand-total {
+      background: #2c2c2c;
+      border-bottom: none;
+      padding: 8px 12px;
+    }
+
+    .total-line.grand-total .label,
+    .total-line.grand-total .value {
+      font-weight: 800;
+      color: white;
+      font-size: 10.5pt;
+    }
+
+    .amount-words {
+      margin-top: 14px;
+      padding: 10px 14px;
+      background: #f2f4f6;
+      border-left: 4px solid #3a3a3a;
+      border-radius: 4px;
+      page-break-inside: avoid;
+      break-inside: avoid;
+    }
+
+    .words-label {
+      font-size: 7.5px;
+      font-weight: 700;
+      text-transform: uppercase;
+      color: #3a3a3a;
+    }
+
+    .words-value {
+      font-size: 9.5pt;
+      font-weight: 500;
+      margin-top: 3px;
+      color: #1e1e1e;
+    }
+
+    /* ========== TRANSPORTATION DETAILS ========== */
+    .transport-grid {
+      display: table;
+      width: 100%;
+      margin-bottom: 10px;
+      page-break-inside: avoid;
+      break-inside: avoid;
+    }
+
+    .transport-row {
+      display: table-row;
+    }
+
+    .transport-item {
+      display: table-cell;
+      padding: 6px 10px 6px 0;
+      width: 25%;
+      vertical-align: top;
+    }
+
+    .transport-label {
+      font-size: 8px;
+      font-weight: 700;
+      color: #777;
+      text-transform: uppercase;
+      margin-bottom: 3px;
+    }
+
+    .transport-value {
+      font-size: 9.5pt;
+      font-weight: 600;
+      color: #111;
+    }
+
+    /* ========== TERMS & CONDITIONS ========== */
+    .terms-box {
+      border: 1px solid #9a9a9a;
+      padding: 12px 18px;
+      background: #fefefe;
+      border-radius: 4px;
+      page-break-inside: avoid;
+      break-inside: avoid;
+    }
+
+    .term-item {
+      padding: 7px 0;
+      border-bottom: 1px solid #9a9a9a;
+      overflow: hidden;
+    }
+
+    .term-item:last-child {
+      border-bottom: none;
+    }
+
+    .term-key {
+      float: left;
+      width: 160px;
+      font-weight: 700;
+      font-size: 9.8pt;
+      color: #3a3a3a;
+      text-transform: uppercase;
+    }
+
+    .term-value {
+      margin-left: 170px;
+      font-size: 9.8pt;
+      color: #333;
+      line-height: 1.48;
+    }
+
+    /* ========== BANK DETAILS ========== */
+    .bank-box {
+      border: 1px solid #ccc;
+      padding: 14px 18px;
+      margin: 20px 0 28px 0;
+      background: #fafbfc;
+      border-radius: 6px;
+      page-break-inside: avoid;
+      break-inside: avoid;
+    }
+
+    .bank-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: #2c2c2c;
+      margin-bottom: 10px;
+      padding-bottom: 4px;
+      border-bottom: 2px solid #2c2c2c;
+    }
+
+    .bank-grid {
+      display: table;
+      width: 100%;
+    }
+
+    .bank-row {
+      display: table-row;
+    }
+
+    .bank-item {
+      display: table-cell;
+      padding: 4px 14px 4px 0;
+      width: 33%;
+    }
+
+    .bank-label {
+      font-size: 7.5px;
+      font-weight: 700;
+      color: #777;
+      text-transform: uppercase;
+    }
+
+    .bank-value {
+      font-size: 9.5pt;
+      font-weight: 700;
+      color: #111;
+      margin-top: 2px;
+    }
+
+    /* ========== SIGNATURES & CLOSING ========== */
+    .closing-box {
+      background: #f5f7f9;
+      padding: 14px 18px;
+      margin-bottom: 15px;
+      border-left: 4px solid #3a3a3a;
+      border-radius: 4px;
+      page-break-inside: avoid;
+      break-inside: avoid;
+    }
+
+    .contact-line {
+      font-size: 9.5pt;
+      margin-bottom: 8px;
+      font-weight: 600;
+    }
+
+    .thankyou-line {
+      font-size: 9pt;
+      color: #444;
+      line-height: 1.5;
+    }
+
+    .signature-push-spacer {
+      margin-top: 80px;
+    }
+
+    .signatures-wrapper {
+      margin-top: 0;
+      margin-bottom: 18px;
+      page-break-inside: avoid;
+    }
+
+    .signatures {
+      display: table;
+      width: 100%;
+      border-top: 1px dashed #aaa;
+      padding-top: 24px;
+    }
+
+    .sig-col {
+      display: table-cell;
+      width: 50%;
+      text-align: center;
+      vertical-align: top;
+    }
+
+    .sig-line {
+      border-top: 2px solid #2c2c2c;
+      width: 75%;
+      margin: 0 auto 10px auto;
+    }
+
+    .sig-role {
+      font-size: 8.5px;
+      font-weight: 700;
+      text-transform: uppercase;
+      color: #555;
+      letter-spacing: 0.5px;
+    }
+
+    .sig-name {
+      font-size: 10pt;
+      font-weight: 700;
+      margin-top: 6px;
+      color: #1e1e1e;
+    }
+
+    .footer {
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px solid #ccc;
+      text-align: center;
+    }
+
+    .footer-text {
+      font-size: 10px;
+      font-weight: 600;
+      color: #2c2c2c;
+      background: #eef0f2;
+      display: inline-block;
+      padding: 5px 20px;
+      border-radius: 30px;
+      letter-spacing: 0.3px;
+    }
+
+    @media print {
+      .page-break-before {
+        page-break-before: always;
+      }
+      body {
+        margin: 0;
+        padding: 0;
+      }
+      .signature-push-spacer {
+        margin-top: 80px;
+      }
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+
+  <!-- HEADER -->
+  <div class="header">
+    <div class="header-left">
+      <div class="oa-title">ORDER ACKNOWLEDGEMENT</div>
+      <div class="issue-date">Issue Date: {{ oa_date }}</div>
+    </div>
+    <div class="header-right">
+      <div class="oa-number">{{ oa_number }}</div>
+      <div class="status-badge">
+        <span>{{ oa.status }}</span>
+      </div>
+    </div>
+    <div class="clearfix"></div>
+  </div>
+
+  <!-- DETAILS ROW (CUSTOMER AND BILLING/SHIPPING) -->
+  <div class="details-row">
+    <!-- Customer Details -->
+    <div class="details-col">
+      <div class="details-label">CUSTOMER DETAILS</div>
+      <div class="company-name">{{ customer.company_name }}</div>
+      {% if customer.telephone_primary %}
+      <div class="details-text"><strong>Phone:</strong> {{ customer.telephone_primary }}</div>
+      {% endif %}
+      {% if customer.email %}
+      <div class="details-text"><strong>Email:</strong> {{ customer.email }}</div>
+      {% endif %}
+      <div class="details-text"><strong>Location:</strong> {{ customer.city }}{% if customer.state %}, {{ customer.state }}{% endif %}{% if customer.country %} — {{ customer.country }}{% endif %}</div>
+      <div class="details-text"><strong>GSTIN:</strong> {{ customer.gst_number|default:'—' }}</div>
+    </div>
+
+    <!-- Billing & Shipping Details -->
+    <div class="details-col">
+      <div class="details-label">BILLING &amp; SHIPPING DETAILS</div>
+      
+      <!-- Bill To -->
+      <div class="address-card">
+        <div class="address-card-title">Bill To:</div>
+        <div class="details-text"><strong>Entity:</strong> {{ billing.entity_name|default:customer.company_name }}</div>
+        {% if billing.address_line %}
+        <div class="details-text"><strong>Address:</strong> {{ billing.address_line }}</div>
+        {% endif %}
+        {% if billing.contact_person %}
+        <div class="details-text"><strong>Attn:</strong> {{ billing.contact_person }}</div>
+        {% endif %}
+        {% if billing.contact_number %}
+        <div class="details-text"><strong>Phone:</strong> {{ billing.contact_number }}</div>
+        {% endif %}
+      </div>
+
+      <!-- Ship To -->
+      <div class="address-card" style="margin-top: 8px;">
+        <div class="address-card-title">Ship To:</div>
+        <div class="details-text"><strong>Entity:</strong> {{ shipping.entity_name|default:customer.company_name }}</div>
+        {% if shipping.address_line %}
+        <div class="details-text"><strong>Address:</strong> {{ shipping.address_line }}</div>
+        {% endif %}
+        {% if shipping.contact_person %}
+        <div class="details-text"><strong>Attn:</strong> {{ shipping.contact_person }}</div>
+        {% endif %}
+        {% if shipping.contact_number %}
+        <div class="details-text"><strong>Phone:</strong> {{ shipping.contact_number }}</div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- ORDER REFERENCE DETAILS -->
+  <div class="reference-box">
+    <div class="reference-grid">
+      <div class="reference-row">
+        <div class="reference-item"><strong>Order No:</strong> {{ transport.order_number|default:oa_number }}</div>
+        <div class="reference-item"><strong>Order Type:</strong> {{ transport.order_type|default:'—' }}</div>
+        <div class="reference-item"><strong>Order Date:</strong> {{ transport.order_date|default:'—' }}</div>
+      </div>
+      <div class="reference-row">
+        <div class="reference-item"><strong>Book No:</strong> {{ transport.order_book_number|default:oa_number }}</div>
+        <div class="reference-item"><strong>Customer PO:</strong> {{ transport.customer_po_number|default:'NA' }}</div>
+        <div class="reference-item"><strong>PO Date:</strong> {{ transport.po_date|default:'—' }}</div>
+      </div>
+      <div class="reference-row">
+        <div class="reference-item"><strong>Division:</strong> {{ transport.division|default:'LQP' }}</div>
+        <div class="reference-item"><strong>Project Type:</strong> {{ transport.project_type|default:'—' }}</div>
+        <div class="reference-item"><strong>Delivery Date:</strong> {{ transport.delivery_date|default:'—' }}</div>
+      </div>
+      <div class="reference-row">
+        <div class="reference-item"><strong>Quote Date:</strong> {{ transport.quote_date|default:'—' }}</div>
+        <div class="reference-item"></div>
+        <div class="reference-item"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- LINE ITEMS TABLE -->
+  <div class="section-title">ORDER ITEMS</div>
+  <table class="items-table">
+    <thead>
+      <tr>
+        <th style="width: 30px">#</th>
+        <th style="width: 90px">Part No.</th>
+        <th>Description</th>
+        <th class="c" style="width: 65px">Qty/Unit</th>
+        <th class="r" style="width: 85px">Unit Price</th>
+        <th class="r" style="width: 95px">Total</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in line_items %}
+      <tr>
+        <td class="c">{{ forloop.counter }}</td>
+        <td>
+          {% if item.part_no %}<div class="part-name">{{ item.part_no }}</div>{% endif %}
+          {% if item.customer_part_no %}<div class="hsn-code">CPN: {{ item.customer_part_no }}</div>{% endif %}
+        </td>
+        <td>
+          <div class="part-name">{{ item.description }}</div>
+          {% if item.hsn_code %}<div class="unit-text" style="font-size: 8.5px; color: #555; margin-top: 2px;">HSN: {{ item.hsn_code }}</div>{% endif %}
+          {% if item.job_code %}<div class="job-code">Job: {{ item.job_code }}</div>{% endif %}
+        </td>
+        <td class="c">
+          <div class="part-name">{{ item.quantity|floatformat:0 }}</div>
+          <div class="unit-text" style="text-transform: uppercase; font-size: 8.5px; color: #555; margin-top: 2px;">{{ item.unit }}</div>
+        </td>
+        <td class="r">{{ item.unit_price|floatformat:2 }}</td>
+        <td class="r">{{ item.amount|floatformat:2 }}</td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="6" class="c" style="padding:25px">No line items</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <!-- TOTALS -->
+  <div class="totals-wrapper">
+    <div class="totals-card">
+      <div class="total-line">
+        <span class="label">Subtotal (excl. tax)</span>
+        <span class="value">{{ oa.currency }} {{ oa.total_value|floatformat:2 }}</span>
+      </div>
+      {% if cgst_amount %}
+      <div class="total-line tax-item">
+        <span class="label">CGST ({{ cgst_rate }}%)</span>
+        <span class="value">{{ oa.currency }} {{ cgst_amount|floatformat:2 }}</span>
+      </div>
+      <div class="total-line tax-item">
+        <span class="label">SGST ({{ sgst_rate }}%)</span>
+        <span class="value">{{ oa.currency }} {{ sgst_amount|floatformat:2 }}</span>
+      </div>
+      {% else %}
+      <div class="total-line tax-item">
+        <span class="label">IGST ({{ igst_rate }}%)</span>
+        <span class="value">{{ oa.currency }} {{ igst_amount|floatformat:2 }}</span>
+      </div>
+      {% endif %}
+      <div class="total-line" style="background:#f0f2f4; border-bottom:2px solid #d0d0d0;">
+        <span class="label"><strong>Total Tax</strong></span>
+        <span class="value"><strong>{{ oa.currency }} {{ total_tax|floatformat:2 }}</strong></span>
+      </div>
+      <div class="total-line grand-total">
+        <span class="label">GRAND TOTAL</span>
+        <span class="value">{{ oa.currency }} {{ oa.total_value|floatformat:2 }}</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- AMOUNT IN WORDS -->
+  {% if amount_in_words %}
+  <div class="amount-words">
+    <div class="words-label">Amount in Words</div>
+    <div class="words-value">{{ amount_in_words }}</div>
+  </div>
+  {% endif %}
+
+  <!-- TRANSPORTATION DETAILS SECTION -->
+  <div class="section-title">TRANSPORTATION DETAILS</div>
+  <div class="transport-grid">
+    <div class="transport-row">
+      <div class="transport-item"><div class="transport-label">Mode of Transport</div><div class="transport-value">{{ transport.mode_of_transport|default:'By Road' }}</div></div>
+      <div class="transport-item"><div class="transport-label">Preferred Transporter</div><div class="transport-value">{{ transport.preferred_transporter|default:'Will be intimated later' }}</div></div>
+      <div class="transport-item"><div class="transport-label">Packing Type</div><div class="transport-value">{{ transport.packing_type|default:'Card Board' }}</div></div>
+      <div class="transport-item"><div class="transport-label">ECC Exemption Letter</div><div class="transport-value">{{ transport.ecc_exemption|default:'Not Applicable' }}</div></div>
+    </div>
+    <div class="transport-row">
+      <div class="transport-item"><div class="transport-label">Road Permit</div><div class="transport-value">{{ transport.road_permit|default:'Not Required' }}</div></div>
+      <div class="transport-item"><div class="transport-label">Shipping GST Number</div><div class="transport-value">{{ transport.shipping_gst|default:'Not Required' }}</div></div>
+      <div class="transport-item"><div class="transport-label">LOI Number</div><div class="transport-value">{{ transport.loi_number|default:'NA' }}</div></div>
+      <div class="transport-item"><div class="transport-label">Project Name</div><div class="transport-value">{{ transport.project_name|default:'NA' }}</div></div>
+    </div>
+  </div>
+
+  <!-- COMMERCIAL TERMS SECTION -->
+  {% if commercial %}
+  <div class="section-title">COMMERCIAL TERMS &amp; CONDITIONS</div>
+  <div class="terms-box">
+    {% if commercial.payment_terms %}
+    <div class="term-item"><div class="term-key">Payment Terms</div><div class="term-value">{{ commercial.payment_terms }}</div></div>
+    {% endif %}
+    {% if commercial.delivery %}
+    <div class="term-item"><div class="term-key">Delivery</div><div class="term-value">{{ commercial.delivery }}</div></div>
+    {% endif %}
+    {% if commercial.warranty %}
+    <div class="term-item"><div class="term-key">Warranty</div><div class="term-value">{{ commercial.warranty }}</div></div>
+    {% endif %}
+    {% if commercial.price_basis %}
+    <div class="term-item"><div class="term-key">Price Basis</div><div class="term-value">{{ commercial.price_basis }}</div></div>
+    {% endif %}
+    {% if commercial.freight %}
+    <div class="term-item"><div class="term-key">Freight</div><div class="term-value">{{ commercial.freight }}</div></div>
+    {% endif %}
+    {% if commercial.insurance %}
+    <div class="term-item"><div class="term-key">Insurance</div><div class="term-value">{{ commercial.insurance }}</div></div>
+    {% endif %}
+    {% if commercial.ld_clause %}
+    <div class="term-item"><div class="term-key">LD Clause</div><div class="term-value">{{ commercial.ld_clause }}</div></div>
+    {% endif %}
+    {% if commercial.test_certificate %}
+    <div class="term-item"><div class="term-key">Test Certificate</div><div class="term-value">{{ commercial.test_certificate }}</div></div>
+    {% endif %}
+    {% if commercial.remarks %}
+    <div class="term-item"><div class="term-key">Remarks</div><div class="term-value">{{ commercial.remarks }}</div></div>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  <!-- BANK DETAILS SECTION -->
+  {% if bank_name or bank_account_number or bank_ifsc %}
+  <div class="bank-box">
+    <div class="bank-title">BANK DETAILS</div>
+    <div class="bank-grid">
+      <div class="bank-row">
+        {% if bank_name %}
+        <div class="bank-item"><div class="bank-label">Bank Name</div><div class="bank-value">{{ bank_name }}</div></div>
+        {% endif %}
+        {% if bank_account_name %}
+        <div class="bank-item"><div class="bank-label">A/C Name</div><div class="bank-value">{{ bank_account_name }}</div></div>
+        {% endif %}
+        {% if bank_branch %}
+        <div class="bank-item"><div class="bank-label">Branch</div><div class="bank-value">{{ bank_branch }}</div></div>
+        {% endif %}
+      </div>
+      <div class="bank-row">
+        {% if bank_account_number %}
+        <div class="bank-item"><div class="bank-label">A/C Number</div><div class="bank-value">{{ bank_account_number }}</div></div>
+        {% endif %}
+        {% if bank_ifsc %}
+        <div class="bank-item"><div class="bank-label">IFSC Code</div><div class="bank-value">{{ bank_ifsc }}</div></div>
+        {% endif %}
+        {% if bank_micr %}
+        <div class="bank-item"><div class="bank-label">MICR Code</div><div class="bank-value">{{ bank_micr }}</div></div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- CLOSING SECTION -->
+  <div class="closing-box">
+    <div class="contact-line">
+      <strong>For any clarification, please contact our Sales Representative:</strong> {{ prepared_by }}{% if company_phone %} | {{ company_phone }}{% endif %}{% if company_email %} | {{ company_email }}{% endif %}
+    </div>
+    <div class="thankyou-line">
+      We sincerely thank you for this opportunity and look forward to receiving your valued order.<br>
+      We assure you of our best services at all times and remain committed to delivering quality products as per your requirements.
+    </div>
+  </div>
+
+  <div class="signature-push-spacer"></div>
+
+  <!-- SIGNATURES -->
+  <div class="signatures-wrapper">
+    <div class="signatures">
+      <div class="sig-col">
+        <div class="sig-line"></div>
+        <div class="sig-role">CUSTOMER ACCEPTANCE</div>
+        <div class="sig-name">{{ customer.company_name }}</div>
+      </div>
+      <div class="sig-col">
+        <div class="sig-line"></div>
+        <div class="sig-role">AUTHORISED SIGNATORY</div>
+        <div class="sig-name">{{ company_name }}</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FOOTER -->
+  <div class="footer">
+    <div class="footer-text">
+      📄 Computer generated order acknowledgement • {{ oa_number }} • Pune, India
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

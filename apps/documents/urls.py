@@ -1,7 +1,7 @@
 # apps/documents/urls.py
 
 from django.urls import path
-from .views import QuotationPDFView, ProformaPDFView, LetterheadView
+from .views import QuotationPDFView, ProformaPDFView, OrderAcknowledgementPDFView, LetterheadView
 
 urlpatterns = [
     # Quotation PDF
@@ -9,6 +9,9 @@ urlpatterns = [
     
     # Proforma PDF
     path('proforma/<uuid:pk>/pdf/', ProformaPDFView.as_view(), name='proforma-pdf'),
+    
+    # OA PDF
+    path('oa/<uuid:pk>/pdf/', OrderAcknowledgementPDFView.as_view(), name='oa-pdf'),
     
     # Letterhead config
     path('letterhead/', LetterheadView.as_view(), name='letterhead'),

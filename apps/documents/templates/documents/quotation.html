@@ -24,8 +24,8 @@
       size: A4;
       margin-top: 58mm;     /* letterhead header spacing */
       margin-bottom: 28mm;
-      margin-left: 11mm;     /* further reduced from 15mm → 11mm (less wasted space) */
-      margin-right: 11mm;    /* symmetrical reduction */
+      margin-left: 6mm;      /* reduced to stretch content closer to margins */
+      margin-right: 6mm;     /* symmetrical reduction */
     }
 
     body {
@@ -94,20 +94,23 @@
 
     /* ========== ADDRESS BLOCKS ========== */
     .address-row {
-      display: table;
+      {% comment %} display: table; {% endcomment %}
       width: 100%;
       margin-bottom: 24px;
-      gap: 20px;
+      {% comment %} gap: 20px; {% endcomment %}
     }
 
     .address-col {
-      display: table-cell;
-      width: 50%;
+      {% comment %} display: table-cell; {% endcomment %}
+      display: block;
+      {% comment %} width: 50%; {% endcomment %}
+      width: 56%;
       vertical-align: top;
       padding: 14px 16px;      /* slightly reduced padding for tighter fit */
       border: 1px solid #d0d0d0;
       border-top: 4px solid #3a3a3a;
       background: #fafbfc;
+      margin-right: auto;
     }
 
     .address-label {
@@ -164,6 +167,8 @@
       font-size: 9.2pt;       /* slightly smaller base for table */
       margin-bottom: 8px;
       table-layout: fixed;
+      border: 1.5px solid #6f6f6f;
+      {% comment %} border: 1.5px solid #8f8f8f; {% endcomment %}
     }
 
     .items-table th {
@@ -173,7 +178,12 @@
       text-align: left;
       font-weight: 700;
       font-size: 8.8px;
-      border-bottom: 3px solid #111;
+      {% comment %} border: 1px solid #4f4f4f; {% endcomment %}
+      {% comment %} border-bottom: 3px solid #111; {% endcomment %}
+      border-top: 1px solid #3f3f3f;
+  border-bottom: 1px solid #6a6a6a;
+  border-right: 1px solid #4e4e4e;
+  border-left: 1px solid #4e4e4e;
     }
 
     .items-table th.r { text-align: right; }
@@ -181,46 +191,33 @@
 
     .items-table td {
       padding: 9px 6px;
-      border-bottom: 1px solid #e2e2e2;
+      {% comment %} border-bottom: 1px solid #e2e2e2; {% endcomment %}
+      {% comment %} border: 1px solid #b1b1b1; {% endcomment %}
+      border: 1px solid #9a9a9a;
       vertical-align: top;
       word-wrap: break-word;
       word-break: break-word;
     }
 
     .items-table tr:nth-child(even) td {
-      background: #f7f8f9;
+      {% comment %} background: #f7f8f9; {% endcomment %}
+      background: #f3f4f6;
     }
 
     .items-table td.r { text-align: right; }
     .items-table td.c { text-align: center; }
 
-    /* Column width definitions (percentage based for responsiveness) */
-    .items-table th:nth-child(1), .items-table td:nth-child(1) { width: 5%; }      /* # */
-    .items-table th:nth-child(2), .items-table td:nth-child(2) { width: 12%; }     /* Part / HSN */
-    .items-table th:nth-child(3), .items-table td:nth-child(3) { width: 34%; }     /* DESCRIPTION - LARGEST AREA */
-    .items-table th:nth-child(4), .items-table td:nth-child(4) { width: 6%; }      /* Qty */
-    .items-table th:nth-child(5), .items-table td:nth-child(5) { width: 6%; }      /* Unit */
-    .items-table th:nth-child(6), .items-table td:nth-child(6) { width: 10%; }     /* Unit Price */
-    .items-table th:nth-child(7), .items-table td:nth-child(7) { width: 10%; }     /* Amount */
-    .items-table th:nth-child(8), .items-table td:nth-child(8) { width: 7%; }      /* Tax % */
-    .items-table th:nth-child(9), .items-table td:nth-child(9) { width: 10%; }     /* Line Total */
-
     /* Fine adjustments for text alignment */
-    .items-table td:first-child, .items-table th:first-child { text-align: center; }
-    .items-table td:nth-child(4), .items-table th:nth-child(4) { text-align: center; }
-    .items-table td:nth-child(5), .items-table th:nth-child(5) { text-align: center; }
-    .items-table td:nth-child(8), .items-table th:nth-child(8) { text-align: center; }
-    .items-table td:nth-child(6), .items-table th:nth-child(6) { text-align: right; }
-    .items-table td:nth-child(7), .items-table th:nth-child(7) { text-align: right; }
-    .items-table td:nth-child(9), .items-table th:nth-child(9) { text-align: right; }
+    .items-table td.c, .items-table th.c { text-align: center; }
+    .items-table td.r, .items-table th.r { text-align: right; }
 
     .part-name {
-      font-weight: 700;
+      font-weight: normal;
       color: #111;
       font-size: 9.4pt;
     }
 
-    .hsn-code, .desc-text {
+    .unit-text, .hsn-code, .desc-text {
       font-size: 8.2px;
       color: #555;
       margin-top: 2px;
@@ -327,7 +324,8 @@
     }
 
     .notes-box {
-      border: 1px solid #ddd;
+      {% comment %} border: 1px solid #ddd; {% endcomment %}
+      border: 1px solid #9a9a9a;
       padding: 12px 16px;
       background: #fefefe;
       border-radius: 4px;
@@ -340,7 +338,8 @@
 
     .notes-box li {
       padding: 5px 0;
-      border-bottom: 1px dotted #ddd;
+      {% comment %} border-bottom: 1px dotted #ddd; {% endcomment %}
+      border-bottom: 1px dotted #9a9a9a;
       font-size: 10pt;         /* slightly reduced from 11pt but still readable */
       color: #333;
       position: relative;
@@ -367,7 +366,8 @@
     }
 
     .terms-box {
-      border: 1px solid #ddd;
+      {% comment %} border: 1px solid #ddd; {% endcomment %}
+      border: 1px solid #9a9a9a;
       padding: 12px 18px;
       background: #fefefe;
       border-radius: 4px;
@@ -375,7 +375,8 @@
 
     .term-item {
       padding: 7px 0;
-      border-bottom: 1px solid #eee;
+      {% comment %} border-bottom: 1px solid #eee; {% endcomment %}
+      border-bottom: 1px solid #9a9a9a;
       overflow: hidden;
     }
 
@@ -399,23 +400,150 @@
       line-height: 1.48;
     }
 
+
+    .product-description-page {
+      page-break-after: always;
+  break-after: page;
+  {% comment %} page-break-inside: avoid;
+  break-inside: avoid; {% endcomment %}
+  margin-bottom: 0;
+}
+
+.product-description-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  border: 1.5px solid #6f6f6f;
+  {% comment %} border: 1.5px solid #8f8f8f; {% endcomment %}
+  background: #fafbfc;
+}
+
+.product-description-table th {
+  background: #2c2c2c;
+  color: #fff;
+  font-size: 9px;
+  font-weight: 700;
+  padding: 10px 8px;
+  {% comment %} border: 1px solid #5f5f5f; {% endcomment %}
+  text-transform: uppercase;
+  border-top: 1px solid #3f3f3f;
+  border-bottom: 1px solid #6a6a6a;
+  border-right: 1px solid #4e4e4e;
+  border-left: 1px solid #4e4e4e;
+}
+
+.product-description-table td {
+  {% comment %} border: 1px solid #cfcfcf; {% endcomment %}
+  border: 1px solid #9a9a9a;
+  padding: 12px 10px;
+  vertical-align: top;
+  font-size: 9.5pt;
+  color: #222;
+}
+
+
+.product-description-table th:nth-child(1),
+.product-description-table td:nth-child(1) {
+  width: 12%;
+  text-align: center;
+}
+
+.product-description-table th:nth-child(2),
+.product-description-table td:nth-child(2) {
+  width: 88%;
+}
+
+.product-sr-no {
+  font-weight: 700;
+  font-size: 10pt;
+  color: #111;
+  text-align: center;
+}
+
+.product-item-name {
+  font-size: 11pt;
+  font-weight: 700;
+  color: #111;
+  margin-bottom: 6px;
+  line-height: 1.35;
+}
+
+.product-item-desc {
+  font-size: 9.2pt;
+  color: #444;
+  line-height: 1.5;
+  white-space: pre-line;
+}
+
+.product-description-table tr:nth-child(even) td {
+  background: #f3f4f6;
+}
+
+.product-page-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: #1e1e1e;
+  text-align: center;
+  border-bottom: 3px solid #2c2c2c;
+  padding-bottom: 10px;
+  margin-bottom: 22px;
+  letter-spacing: -0.3px;
+}
+
+.product-description-card {
+  border: 1px solid #cfcfcf;
+  border-top: 4px solid #3a3a3a;
+  background: #fafbfc;
+  padding: 18px 20px;
+}
+
+.product-block {
+  margin-bottom: 18px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid #d8d8d8;
+}
+
+.product-block:last-child {
+  margin-bottom: 0;
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+.product-name {
+  font-size: 14px;
+  font-weight: 700;
+  color: #111;
+  margin-bottom: 8px;
+}
+
+.product-description-text {
+  font-size: 10pt;
+  color: #444;
+  line-height: 1.55;
+  white-space: pre-line;
+}
+
     /* ========== PAGE BREAK : BANK DETAILS AND EVERYTHING AFTER ON NEW PAGE ========== */
     .page-break-before {
       page-break-before: always;
       margin-top: 0;
     }
 
-    .pre-clarification-spacer {
-      margin-top: 38px;       /* slightly reduced but still ample */
+    .closing-section-container {
+      page-break-inside: avoid;
+      break-inside: avoid;
+      margin-top: 18px;
     }
 
     /* ========== BANK + CLOSING ========== */
     .bank-box {
       border: 1px solid #ccc;
       padding: 16px 20px;
-      margin: 18px 0 24px 0;
+      margin: 0 0 16px 0;
       background: #fafbfc;
       border-radius: 6px;
+      page-break-inside: avoid;
+      break-inside: avoid;
     }
 
     .bank-title {
@@ -463,6 +591,8 @@
       margin-bottom: 12px;
       border-left: 4px solid #3a3a3a;
       border-radius: 4px;
+      page-break-inside: avoid;
+      break-inside: avoid;
     }
 
     .contact-line {
@@ -479,7 +609,7 @@
 
     /* SIGNATURE PUSH SPACER - slightly reduced but still pushes down */
     .signature-push-spacer {
-      margin-top: 82px;       /* reduced from 95px but still effective */
+      margin-top: 45px;       /* reduced to prevent unnecessary page breaks */
     }
 
     /* ========== SIGNATURES AT THE VERY BOTTOM ========== */
@@ -591,16 +721,6 @@
   <!-- ADDRESSES (FROM / TO) -->
   <div class="address-row">
     <div class="address-col">
-      <div class="address-label">FROM</div>
-      <div class="company-name">{{ company_name }}</div>
-      {% if company_address %}<div class="address-text">{{ company_address }}</div>{% endif %}
-      {% if company_phone %}<div class="address-text">Ph: {{ company_phone }}</div>{% endif %}
-      {% if company_email %}<div class="address-text">{{ company_email }}</div>{% endif %}
-      {% if company_gstin or company_pan %}
-      <div class="gst-text">GSTIN: {{ company_gstin }} | PAN: {{ company_pan }}</div>
-      {% endif %}
-    </div>
-    <div class="address-col">
       <div class="address-label">QUOTATION TO</div>
       <div class="company-name">{{ customer.company_name }}</div>
       {% if billing_address %}
@@ -619,20 +739,57 @@
     </div>
   </div>
 
+  <div class="product-description-page">
+  <div class="product-page-title">PRODUCT DESCRIPTION</div>
+
+  <table class="product-description-table">
+    <thead>
+      <tr>
+        <th>Sr. No</th>
+        <th>Item Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in line_items %}
+        {% if item.product_name_snapshot or item.description_snapshot %}
+        <tr>
+          <td class="product-sr-no">{{ forloop.counter }}</td>
+          <td>
+            {% if item.product_name_snapshot %}
+              <div class="product-item-name">{{ item.product_name_snapshot }}</div>
+            {% endif %}
+
+            {% if item.description_snapshot %}
+              <div class="product-item-desc">{{ item.description_snapshot }}</div>
+            {% endif %}
+          </td>
+        </tr>
+        {% endif %}
+      {% empty %}
+        <tr>
+          <td class="product-sr-no">1</td>
+          <td><div class="product-item-desc">No product description available.</div></td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+
+
+
+
   <!-- PRICE SCHEDULE TABLE - ENHANCED DESCRIPTION COLUMN WIDTH -->
   <div class="section-title">PRICE SCHEDULE</div>
   <table class="items-table">
     <thead>
       <tr>
-        <th>#</th>
-        <th>Part / HSN</th>
+        <th style="width: 5%;" class="c">SR</th>
+        <th style="width: 15%;">Part No</th>
         <th>Description</th>
-        <th class="c">Qty</th>
-        <th class="c">Unit</th>
-        <th class="r">Unit Price</th>
-        <th class="r">Amount</th>
-        <th class="c">Tax %</th>
-        <th class="r">Line Total</th>
+        <th style="width: 65px;" class="c">Qty/Unit</th>
+        <th style="width: 14%;" class="r">Unit Price</th>
+        <th style="width: 16%;" class="r">Total</th>
       </tr>
     </thead>
     <tbody>
@@ -641,23 +798,25 @@
         <td class="c">{{ forloop.counter }}</td>
         <td>
           {% if item.part_no %}<div class="part-name">{{ item.part_no }}</div>{% endif %}
-          {% if item.hsn_snapshot %}<div class="hsn-code">HSN: {{ item.hsn_snapshot }}</div>{% endif %}
-          {% if item.customer_part_no %}<div class="hsn-code">CPN: {{ item.customer_part_no }}</div>{% endif %}
         </td>
         <td>
           <div class="part-name">{{ item.product_name_snapshot }}</div>
-          {% if item.description_snapshot %}<div class="desc-text">{{ item.description_snapshot }}</div>{% endif %}
+          {% if item.hsn_snapshot %}
+          <div class="hsn-code">HSN: {{ item.hsn_snapshot }}</div>
+          {% endif %}
           {% if item.job_code %}<div class="job-code">Job: {{ item.job_code }}</div>{% endif %}
         </td>
-        <td class="c">{{ item.quantity }}</td>
-        <td class="c">{{ item.unit_snapshot }}</td>
+        <td class="c">
+          <div>{{ item.quantity|floatformat:0 }}</div>
+          {% if item.unit_snapshot %}
+          <div class="unit-text">{{ item.unit_snapshot }}</div>
+          {% endif %}
+        </td>
         <td class="r">{{ item.unit_price|floatformat:2 }}</td>
         <td class="r">{{ item.line_amount|floatformat:2 }}</td>
-        <td class="c">{{ item.tax_percent }}%</td>
-        <td class="r"><strong>{{ item.line_total|floatformat:2 }}</strong></td>
       </tr>
       {% empty %}
-      <tr><td colspan="9" class="c" style="padding:25px">No line items</td></tr>
+      <tr><td colspan="6" class="c" style="padding:25px">No line items</td></tr>
       {% endfor %}
     </tbody>
   </table>
@@ -708,6 +867,9 @@
     ⚙️ Quality assured | ISO certified processes | Test certificates available on request
   </div>
 
+  <!-- PAGE BREAK: ADDITIONAL INFORMATION ON NEW PAGE -->
+  <div class="page-break-before"></div>
+
   <!-- ADDITIONAL INFORMATION SECTION -->
   <div class="notes-section">
     <div class="section-title">ADDITIONAL INFORMATION</div>
@@ -755,70 +917,65 @@
   </div>
   {% endif %}
 
-  <!-- ============================================================= -->
-  <!-- PAGE BREAK: BANK DETAILS AND EVERYTHING AFTER ON NEW PAGE     -->
-  <!-- ============================================================= -->
-  <div class="page-break-before"></div>
-
-  <!-- BANK DETAILS SECTION -->
-  {% if bank_name or bank_account_number or bank_ifsc %}
-  <div class="bank-box">
-    <div class="bank-title">BANK DETAILS</div>
-    <div class="bank-grid">
-      <div class="bank-row">
-        {% if bank_name %}
-        <div class="bank-item"><div class="bank-label">Bank Name</div><div class="bank-value">{{ bank_name }}</div></div>
-        {% endif %}
-        {% if bank_account_name %}
-        <div class="bank-item"><div class="bank-label">A/C Name</div><div class="bank-value">{{ bank_account_name }}</div></div>
-        {% endif %}
-        {% if bank_branch %}
-        <div class="bank-item"><div class="bank-label">Branch</div><div class="bank-value">{{ bank_branch }}</div></div>
-        {% endif %}
-      </div>
-      <div class="bank-row">
-        {% if bank_account_number %}
-        <div class="bank-item"><div class="bank-label">A/C Number</div><div class="bank-value">{{ bank_account_number }}</div></div>
-        {% endif %}
-        {% if bank_ifsc %}
-        <div class="bank-item"><div class="bank-label">IFSC Code</div><div class="bank-value">{{ bank_ifsc }}</div></div>
-        {% endif %}
-        {% if bank_micr %}
-        <div class="bank-item"><div class="bank-label">MICR Code</div><div class="bank-value">{{ bank_micr }}</div></div>
-        {% endif %}
+  <!-- CLOSING SECTION CONTAINER (KEEPS BANK DETAILS, CLARIFICATION, AND SIGNATURES TOGETHER) -->
+  <div class="closing-section-container">
+    <!-- BANK DETAILS SECTION -->
+    {% if bank_name or bank_account_number or bank_ifsc %}
+    <div class="bank-box">
+      <div class="bank-title">BANK DETAILS</div>
+      <div class="bank-grid">
+        <div class="bank-row">
+          {% if bank_name %}
+          <div class="bank-item"><div class="bank-label">Bank Name</div><div class="bank-value">{{ bank_name }}</div></div>
+          {% endif %}
+          {% if bank_account_name %}
+          <div class="bank-item"><div class="bank-label">A/C Name</div><div class="bank-value">{{ bank_account_name }}</div></div>
+          {% endif %}
+          {% if bank_branch %}
+          <div class="bank-item"><div class="bank-label">Branch</div><div class="bank-value">{{ bank_branch }}</div></div>
+          {% endif %}
+        </div>
+        <div class="bank-row">
+          {% if bank_account_number %}
+          <div class="bank-item"><div class="bank-label">A/C Number</div><div class="bank-value">{{ bank_account_number }}</div></div>
+          {% endif %}
+          {% if bank_ifsc %}
+          <div class="bank-item"><div class="bank-label">IFSC Code</div><div class="bank-value">{{ bank_ifsc }}</div></div>
+          {% endif %}
+          {% if bank_micr %}
+          <div class="bank-item"><div class="bank-label">MICR Code</div><div class="bank-value">{{ bank_micr }}</div></div>
+          {% endif %}
+        </div>
       </div>
     </div>
-  </div>
-  {% endif %}
+    {% endif %}
 
-  <!-- FOR ANY CLARIFICATION SECTION with extra blank space -->
-  <div class="pre-clarification-spacer"></div>
-  
-  <div class="closing-box">
-    <div class="contact-line">
-      <strong>For any clarification, please contact our Sales Representative:</strong> {{ prepared_by }}{% if company_phone %} | {{ company_phone }}{% endif %}{% if company_email %} | {{ company_email }}{% endif %}
-    </div>
-    <div class="thankyou-line">
-      We sincerely thank you for this opportunity and look forward to receiving your valued order.<br>
-      We assure you of our best services at all times and remain committed to delivering quality products as per your requirements.
-    </div>
-  </div>
-
-  <!-- LARGE BLANK SPACE after clarification line (slightly reduced but still pushes signatures down) -->
-  <div class="signature-push-spacer"></div>
-
-  <!-- SIGNATURES: CUSTOMER ACCEPTANCE & AUTHORISED SIGNATORY -->
-  <div class="signatures-wrapper">
-    <div class="signatures">
-      <div class="sig-col">
-        <div class="sig-line"></div>
-        <div class="sig-role">CUSTOMER ACCEPTANCE</div>
-        <div class="sig-name">{{ customer.company_name }}</div>
+    <div class="closing-box">
+      <div class="contact-line">
+        <strong>For any clarification, please contact our Sales Representative:</strong> {{ prepared_by }}{% if company_phone %} | {{ company_phone }}{% endif %}{% if company_email %} | {{ company_email }}{% endif %}
       </div>
-      <div class="sig-col">
-        <div class="sig-line"></div>
-        <div class="sig-role">AUTHORISED SIGNATORY</div>
-        <div class="sig-name">{{ company_name }}</div>
+      <div class="thankyou-line">
+        We sincerely thank you for this opportunity and look forward to receiving your valued order.<br>
+        We assure you of our best services at all times and remain committed to delivering quality products as per your requirements.
+      </div>
+    </div>
+
+    <!-- LARGE BLANK SPACE after clarification line -->
+    <div class="signature-push-spacer"></div>
+
+    <!-- SIGNATURES: CUSTOMER ACCEPTANCE & AUTHORISED SIGNATORY -->
+    <div class="signatures-wrapper">
+      <div class="signatures">
+        <div class="sig-col">
+          <div class="sig-line"></div>
+          <div class="sig-role">CUSTOMER ACCEPTANCE</div>
+          <div class="sig-name">{{ customer.company_name }}</div>
+        </div>
+        <div class="sig-col">
+          <div class="sig-line"></div>
+          <div class="sig-role">AUTHORISED SIGNATORY</div>
+          <div class="sig-name">{{ company_name }}</div>
+        </div>
       </div>
     </div>
   </div>

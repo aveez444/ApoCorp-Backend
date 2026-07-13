@@ -1,11 +1,13 @@
+# products/views.py - Add the missing import at the top
+
 from rest_framework.decorators import api_view
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from django.db.models import Q
+from django.db.models import Q, Sum, Count, Avg, F, Value, CharField
+from django.db.models.functions import Coalesce  # ADD THIS IMPORT
 from django.utils import timezone
-from django.db.models import Sum, Count
 from datetime import timedelta
 
 from core.viewsets import TenantModelViewSet
@@ -19,8 +21,10 @@ from .serializers import (
     ProductCategorySerializer,
     ProductTypeSerializer,
     UnitOfMeasureSerializer,
-    ProductSearchSerializer  # Add this import for the old search
+    ProductSearchSerializer
 )
+
+from rest_framework.pagination import PageNumberPagination
 
 
 # ─────────────────────────────────────────────────────────
@@ -93,6 +97,11 @@ def product_search(request):
     })
 
 
+class ProductPagination(PageNumberPagination):
+    page_size = 20
+    page_size_query_param = 'limit'
+    max_page_size = 100
+
 # ─────────────────────────────────────────────────────────
 # PRODUCT VIEWSET - For CRUD operations
 # ─────────────────────────────────────────────────────────
@@ -126,6 +135,7 @@ class ProductViewSet(ModelPermissionMixin, TenantModelViewSet):
         'created_by'
     )
     permission_classes = [IsAuthenticated]
+    pagination_class = ProductPagination  # ADD THIS
     
     def get_serializer_class(self):
         """Use different serializers for list vs detail views"""
@@ -396,7 +406,7 @@ class ProductViewSet(ModelPermissionMixin, TenantModelViewSet):
     # Reference Data Endpoints
     # ─────────────────────────────────────────────────────────
     
-    @action(detail=False, methods=['get'])
+    @action(detail=False, methods=['get'], url_path='categories', url_name='categories')
     def categories(self, request):
         """Get all product categories for dropdowns"""
         categories = ProductCategory.objects.filter(
@@ -407,7 +417,7 @@ class ProductViewSet(ModelPermissionMixin, TenantModelViewSet):
         serializer = ProductCategorySerializer(categories, many=True)
         return Response(serializer.data)
     
-    @action(detail=False, methods=['get'])
+    @action(detail=False, methods=['get'], url_path='product_types', url_name='product_types')
     def product_types(self, request):
         """Get all product types for dropdowns"""
         product_types = ProductType.objects.filter(
@@ -418,7 +428,7 @@ class ProductViewSet(ModelPermissionMixin, TenantModelViewSet):
         serializer = ProductTypeSerializer(product_types, many=True)
         return Response(serializer.data)
     
-    @action(detail=False, methods=['get'])
+    @action(detail=False, methods=['get'], url_path='units', url_name='units')
     def units(self, request):
         """Get all units of measure for dropdowns"""
         units = UnitOfMeasure.objects.filter(
@@ -433,29 +443,25 @@ class ProductViewSet(ModelPermissionMixin, TenantModelViewSet):
     # Statistics Endpoint
     # ─────────────────────────────────────────────────────────
     
+    # products/views.py - Update the stats method
+
     @action(detail=False, methods=['get'])
     def stats(self, request):
         """
-        Get product statistics.
-        
-        Returns:
-        {
-            "total_products": 150,
-            "active_products": 120,
-            "inactive_products": 30,
-            "locked_products": 10,
-            "marketing_parts": 45,
-            "engineering_parts": 55,
-            "categories_count": 12,
-            "total_stock_value": 5000000,
-            "products_by_category": [...],
-            "recently_added": 5,
-            "recently_updated": 10
-        }
+        Get product statistics without pagination limitations.
         """
         queryset = self.get_queryset()
         
-        # Base stats
+        # Calculate total value - try purchase price first, then sale price
+        total_value = queryset.aggregate(
+            total_purchase=Sum('default_purchase_price'),
+            total_sale=Sum('default_sale_price')
+        )
+        
+        # Use purchase price if available, otherwise use sale price
+        total_value_amount = total_value['total_purchase'] or total_value['total_sale'] or 0
+        
+        # Calculate base stats using database aggregation
         stats_data = {
             "total_products": queryset.count(),
             "active_products": queryset.filter(is_active=True).count(),
@@ -467,29 +473,42 @@ class ProductViewSet(ModelPermissionMixin, TenantModelViewSet):
                 tenant=request.tenant,
                 is_active=True
             ).count(),
-            "total_stock_value": queryset.aggregate(
-                total=Sum('default_purchase_price')
-            )['total'] or 0,
+            "total_value": float(total_value_amount) if total_value_amount else 0,
         }
         
-        # Products by category
+        # Products by category (top 5)
         products_by_category = queryset.filter(
             category__isnull=False
         ).values('category__name').annotate(
             count=Count('id')
-        ).order_by('-count')
+        ).order_by('-count')[:5]
         
         stats_data['products_by_category'] = list(products_by_category)
         
         # Recent additions (last 30 days)
         thirty_days_ago = timezone.now() - timedelta(days=30)
-        
         stats_data['recently_added'] = queryset.filter(
             created_at__gte=thirty_days_ago
         ).count()
         
-        stats_data['recently_updated'] = queryset.filter(
-            updated_at__gte=thirty_days_ago
-        ).count()
+        # Total inventory value (using purchase price if available, else sale price)
+        inventory_value = queryset.aggregate(
+            total_purchase=Sum('default_purchase_price'),
+            total_sale=Sum('default_sale_price')
+        )
+        inventory_amount = inventory_value['total_purchase'] or inventory_value['total_sale'] or 0
+        stats_data['total_inventory_value'] = float(inventory_amount) if inventory_amount else 0
         
         return Response(stats_data)
+    
+    # products/views.py - Add to ProductViewSet
+
+    @action(detail=False, methods=['get'], url_path='dashboard-preview')
+    def dashboard_preview(self, request):
+        """
+        Get a small preview of products for the dashboard.
+        Returns 6 products with basic info.
+        """
+        queryset = self.get_queryset().order_by('-created_at')[:6]
+        serializer = ProductListSerializer(queryset, many=True)
+        return Response(serializer.data)
