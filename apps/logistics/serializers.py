@@ -14,6 +14,7 @@ from .models import (
     BackOrderLineItem,
 )
 from apps.orders.models import OALineItem
+from .einvoice_models import EInvoiceRecord
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -538,12 +539,36 @@ class DeliveryChallanSerializer(serializers.ModelSerializer):
 # SalesInvoice (with BackOrder support)
 # ─────────────────────────────────────────────────────────────────────────────
 
+# ─────────────────────────────────────────────────────────────────────────────
+# E-Invoice status (nested, read-only) — lets the frontend know whether to
+# show "Generate", "Cancel", or the IRN/QR details without a separate fetch.
+# ─────────────────────────────────────────────────────────────────────────────
+
+class EInvoiceStatusSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = EInvoiceRecord
+        fields = ['status', 'irn', 'ack_no', 'ack_date', 'can_cancel', 'error_message']
+
+
 class SalesInvoiceSerializer(serializers.ModelSerializer):
     line_items = SalesInvoiceLineItemSerializer(many=True, required=False)
     
         # ADD THESE TWO LINES - to include packaging slip and delivery challan
     packaging_slip = PackagingSlipSerializer(read_only=True)
     delivery_challan = DeliveryChallanSerializer(read_only=True)
+
+    # E-invoice status — SerializerMethodField (not a nested serializer field
+    # bound directly to the reverse OneToOne) because accessing invoice.einvoice
+    # raises EInvoiceRecord.DoesNotExist when no IRN has been generated yet;
+    # DRF's default attribute lookup does not catch that, so a direct nested
+    # field here would 500 on every un-invoiced SalesInvoice.
+    einvoice = serializers.SerializerMethodField()
+
+    def get_einvoice(self, obj):
+        try:
+            return EInvoiceStatusSerializer(obj.einvoice).data
+        except EInvoiceRecord.DoesNotExist:
+            return None
 
     # Read-only context fields
     order_number = serializers.CharField(source='order.order_number', read_only=True)

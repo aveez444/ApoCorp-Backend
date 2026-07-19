@@ -13,6 +13,15 @@
 #         then runs through the same pdf_engine pipeline as the regular invoice PDF.
 #
 # The regular InvoicePDFView (existing) is unchanged; this is an additive layer.
+#
+# ── CHANGED from the previous draft ────────────────────────────────────────
+#  1. invoice_currency / amount_in_words no longer read invoice.currency
+#     (SalesInvoice has no such field — it lives on Order) — now read
+#     invoice.order.currency, same as the regular InvoicePDFView does.
+#  2. The CGST/SGST vs IGST split for the PDF now resolves invoice.state_code
+#     through the shared resolve_state_code() (apps.logistics.state_codes)
+#     before comparing it to the resolved company state code, instead of
+#     comparing a possibly-unresolved raw value against a resolved one.
 
 from __future__ import annotations
 
@@ -30,6 +39,7 @@ from rest_framework import status
 
 from .gsp_client import GSPClient, GSPError
 from .einvoice_models import EInvoiceRecord
+from .state_codes import resolve_state_code
 from apps.documents.models import TenantLetterhead
 from apps.documents.pdf_engine import generate_quotation_pdf, split_gst, amount_in_words
 
@@ -51,15 +61,12 @@ def _get_invoice(pk, tenant):
                 'order',
                 'order__oa',
                 'order__oa__quotation',
-                'order__oa__quotation__enquiry',
-                'order__oa__quotation__enquiry__customer',
                 'back_order',
                 'tenant',
                 'tenant__letterhead',
             )
             .prefetch_related(
                 'line_items',
-                'order__oa__quotation__enquiry__customer__addresses',
             )
             .get(pk=pk, tenant=tenant)
         )
@@ -318,15 +325,13 @@ class EInvoicePDFView(APIView):
 def _build_einvoice_context(invoice, einvoice_record: EInvoiceRecord) -> dict:
     """
     Assembles every variable the einvoice.html template needs.
-    Mirrors _build_invoice_context from views.py but also injects the IRN,
-    QR data, and ack details.
+    Mirrors build_invoice_context from invoice_pdf_view.py but also injects
+    the IRN, QR data, and ack details.
     """
 
     order    = invoice.order
     oa       = getattr(order, 'oa', None)
     quotation = oa.quotation if oa else None
-    enquiry  = quotation.enquiry if quotation else None
-    customer = enquiry.customer if enquiry else None
     tenant   = invoice.tenant
 
     # ── Letterhead ────────────────────────────────────────────────────────
@@ -342,29 +347,35 @@ def _build_einvoice_context(invoice, einvoice_record: EInvoiceRecord) -> dict:
     company_gstin   = (lh and lh.company_gstin)   or getattr(tenant, 'gstin', '') or ''
     company_pan     = (lh and lh.company_pan)     or ''
     company_state   = (lh and lh.company_state)   or ''
+    # Reuse GSPClient's state-name→code map so seller state code is derived
+    # identically here and in the actual IRP payload — one source of truth.
+    company_state_code = GSPClient._resolve_state_code(lh)
     bank_name           = (lh and lh.bank_name) or ''
     bank_account_name   = (lh and lh.bank_account_name) or ''
     bank_branch         = (lh and lh.bank_branch) or ''
     bank_account_number = (lh and lh.bank_account_number) or ''
     bank_ifsc           = (lh and lh.bank_ifsc) or ''
 
+    # ── Buyer state code ─────────────────────────────────────────────────
+    # invoice.state_code may hold a name or an already-numeric code — resolve
+    # it the same way build_irn_payload() does, so the PDF's CGST/SGST-vs-IGST
+    # split always matches what was actually submitted to IRP.
+    buyer_state_code = resolve_state_code(invoice.state_code)
+
     # ── Addresses ─────────────────────────────────────────────────────────
-    bill_to = None
-    ship_to = None
-    if customer:
-        bill_to = (
-            customer.addresses.filter(address_type='BILLING', is_default=True).first()
-            or customer.addresses.filter(address_type='BILLING').first()
-        )
-        ship_to = (
-            customer.addresses.filter(address_type='SHIPPING', is_default=True).first()
-            or customer.addresses.filter(address_type='SHIPPING').first()
-            or bill_to
-        )
+    # Read from the invoice's own snapshot, captured at entry time
+    # (CreateInvoice.jsx AddressCard: entity_name, address_line, city,
+    # state, pincode, country) — NOT from the customer's live address book,
+    # which may have changed since this invoice was raised.
+    bill_to = invoice.bill_to or {}
+    ship_to = invoice.ship_to or bill_to
 
     # ── Line items ────────────────────────────────────────────────────────
     line_items_qs  = invoice.line_items.all()
     line_items_ctx = []
+
+    intra = bool(buyer_state_code) and buyer_state_code == str(company_state_code or '').strip()
+
     for item in line_items_qs:
         qty      = Decimal(str(item.quantity or 0))
         price    = Decimal(str(item.unit_price or 0))
@@ -372,10 +383,6 @@ def _build_einvoice_context(invoice, einvoice_record: EInvoiceRecord) -> dict:
         tax_amt  = Decimal(str(item.tax_amount or 0))
         cgst_amt = (tax_amt / 2).quantize(Decimal('0.01'))
         sgst_amt = (tax_amt / 2).quantize(Decimal('0.01'))
-
-        cust_state = (getattr(customer, 'state', '') or '').strip().lower()
-        comp_state = (company_state or '').strip().lower()
-        intra      = bool(cust_state and comp_state and cust_state == comp_state)
 
         line_items_ctx.append({
             'part_no':       getattr(item, 'part_no', '') or '',
@@ -397,7 +404,7 @@ def _build_einvoice_context(invoice, einvoice_record: EInvoiceRecord) -> dict:
     # ── GST split ─────────────────────────────────────────────────────────
     cgst, sgst, igst, cgst_rate, sgst_rate, igst_rate = split_gst(
         line_items_qs,
-        customer_state=getattr(customer, 'state', '') or '',
+        customer_state=(ship_to or {}).get('state', '') or (bill_to or {}).get('state', '') or '',
         company_state=company_state,
     )
 
@@ -416,6 +423,9 @@ def _build_einvoice_context(invoice, einvoice_record: EInvoiceRecord) -> dict:
         if not d:
             return '—'
         return d.strftime('%d %b %Y %H:%M') if hasattr(d, 'strftime') else str(d)
+
+    # ── Currency — lives on Order, not SalesInvoice ─────────────────────────
+    invoice_currency = (order.currency if order else '') or 'INR'
 
     return {
         # Company
@@ -437,15 +447,24 @@ def _build_einvoice_context(invoice, einvoice_record: EInvoiceRecord) -> dict:
         'invoice':          invoice,
         'invoice_date':     fmt(invoice.invoice_date),
         'payment_due_date': fmt(invoice.payment_due_date) if hasattr(invoice, 'payment_due_date') else '—',
-        'invoice_currency': invoice.currency or 'INR',
+        'invoice_currency': invoice_currency,
 
         # References
         'oa_number':        oa.oa_number if oa else '—',
         'order_number':     order.order_number if order else '—',
         'back_order_number': back_order_number,
 
+        # Transport / dispatch (Rule 46 requires these whenever goods move,
+        # independent of e-way bill generation)
+        'transporter_name':  invoice.transporter or '',
+        'vehicle_number':    invoice.vehicle_number or '',
+        'lr_number':         invoice.lr_number or '',
+        'mode_of_transport': invoice.mode_of_transport or '',
+        'date_of_removal':   fmt(invoice.date_of_removal),
+        'time_of_removal':   invoice.time_of_removal.strftime('%H:%M') if invoice.time_of_removal else '—',
+
         # Customer
-        'customer_name': getattr(customer, 'company_name', '') or '',
+        'customer_name': (bill_to or {}).get('entity_name', '') or '',
         'bill_to':       bill_to,
         'ship_to':       ship_to,
 
@@ -464,7 +483,7 @@ def _build_einvoice_context(invoice, einvoice_record: EInvoiceRecord) -> dict:
         'net_amount':  invoice.net_amount,
         'grand_total': invoice.grand_total,
 
-        'amount_in_words': amount_in_words(invoice.grand_total, invoice.currency or 'INR'),
+        'amount_in_words': amount_in_words(invoice.grand_total, invoice_currency),
 
         # ── E-invoice specific ─────────────────────────────────────────────
         'irn':            einvoice_record.irn,

@@ -23,6 +23,26 @@
 #   client = GSPClient.for_tenant(request.tenant)
 #   irn_data = client.generate_irn(invoice)        # raises GSPError on failure
 #   # irn_data keys: irn, ack_no, ack_date, signed_qr_data, signed_invoice, raw_response
+#
+# ── State-code resolution (CHANGED) ────────────────────────────────────────
+#  Both the supplier's and the buyer's GST state code are now resolved
+#  through apps.logistics.state_codes.resolve_state_code(), which accepts
+#  either a state name or an already-numeric code and normalizes to the
+#  2-digit code IRP requires. If a state can't be resolved, this file now
+#  raises GSPError instead of silently defaulting to Maharashtra ('27') or
+#  Telangana ('36') as earlier drafts did — a silent wrong default produces
+#  either a wrong CGST/SGST-vs-IGST split or an opaque IRP rejection, so we
+#  fail fast with a message that tells you exactly what's unset.
+#
+# ── Seller Loc/Pin (FIXED) ──────────────────────────────────────────────────
+#  generate_irn() previously patched SellerDtls with LglNm/TrdNm/Addr1 only,
+#  leaving Loc (city) and Pin (pincode) at build_irn_payload()'s defaults of
+#  '' and 0. Both are mandatory in IRP's SellerDtls schema — every submission
+#  would have been rejected once GSP credentials were in place. Now sourced
+#  from TenantLetterhead.company_city / company_pincode (new fields — run
+#  makemigrations/migrate on apps.documents), with the same fail-fast
+#  behaviour as the state-code check above rather than silently sending
+#  Pin=0.
 
 from __future__ import annotations
 
@@ -33,6 +53,8 @@ from decimal import Decimal
 
 import requests
 from django.utils import timezone
+
+from .state_codes import resolve_state_code
 
 logger = logging.getLogger(__name__)
 
@@ -141,61 +163,65 @@ def build_irn_payload(invoice, company_gstin: str, company_state_code: str) -> d
         invoice           : SalesInvoice ORM object (with .line_items prefetched)
         company_gstin     : Supplier GSTIN (from TenantGSPConfig or TenantLetterhead)
         company_state_code: 2-digit state code of supplier, e.g. '27' for Maharashtra
+                             (already resolved by the caller — see generate_irn)
     """
 
     # ── Pull related objects ──────────────────────────────────────────────────
+    # NOTE: order/oa/quotation are only used for descriptive/reference fields
+    # (PO number etc). Address + GSTIN + state MUST come from the invoice
+    # snapshot below — never from the customer's live records — because the
+    # invoice reflects the address as it was at billing time, and the
+    # customer's address/GSTIN may have changed since.
     order    = invoice.order
     oa       = getattr(order, 'oa', None)
     quotation = oa.quotation if oa else None
-    enquiry  = quotation.enquiry if quotation else None
-    customer = enquiry.customer if enquiry else None
 
-    # Billing & shipping address
-    bill_addr = None
-    ship_addr = None
-    if customer:
-        bill_addr = (
-            customer.addresses.filter(address_type='BILLING', is_default=True).first()
-            or customer.addresses.filter(address_type='BILLING').first()
-        )
-        ship_addr = (
-            customer.addresses.filter(address_type='SHIPPING', is_default=True).first()
-            or customer.addresses.filter(address_type='SHIPPING').first()
-            or bill_addr
-        )
+    # ── Address snapshots (captured on the invoice at entry time) ─────────────
+    # Shape saved by the frontend (CreateInvoice.jsx AddressCard):
+    #   { entity_name, address_line, city, state, pincode, country }
+    bill_snap = invoice.bill_to or {}
+    ship_snap = invoice.ship_to or bill_snap or {}
 
-    customer_gstin = getattr(customer, 'gst_number', '') or 'URP'  # URP = Unregistered Person
+    buyer_gstin = (invoice.consignee_gst or '').strip() or 'URP'  # URP = Unregistered Person
+
+    # ── Buyer state code ────────────────────────────────────────────────────
+    # invoice.state_code may hold either a state name (e.g. populated from
+    # customer.state as a fallback) or an already-numeric code (e.g. sent
+    # explicitly by the frontend). resolve_state_code() normalizes either.
+    # This is the authoritative value for e-invoice purposes — never
+    # re-derived from the customer's live record here.
+    buyer_state_code = resolve_state_code(invoice.state_code)
+    if not buyer_state_code:
+        raise GSPError(
+            f'Cannot determine buyer GST state code for invoice '
+            f'{invoice.invoice_number}: invoice.state_code is empty or not '
+            f'recognized ("{invoice.state_code}"). Set a valid state/state '
+            f'code on the invoice before generating the e-invoice.'
+        )
 
     # ── Address helper ────────────────────────────────────────────────────────
-    def _addr_block(addr_obj, gstin: str, legal_name: str, state_code: str) -> dict:
-        if not addr_obj:
-            return {
-                'Gstin': gstin,
-                'LglNm': legal_name,
-                'Addr1': '',
-                'Loc':   '',
-                'Pin':   '000000',
-                'Stcd': state_code or '36',
-            }
+    def _addr_block(snap: dict, gstin: str, state_code: str,
+                     phone: str = '', email: str = '') -> dict:
+        legal_name = (snap.get('entity_name') or '').strip()
+        pincode_raw = snap.get('pincode') or 0
+        try:
+            pin = int(str(pincode_raw).strip() or 0)
+        except ValueError:
+            pin = 0
         return {
             'Gstin': gstin,
             'LglNm': legal_name,
             'TrdNm': legal_name,
-            'Addr1': getattr(addr_obj, 'address_line', '') or '',
-            'Addr2': getattr(addr_obj, 'address_line_2', '') or '',
-            'Loc':   getattr(addr_obj, 'city', '') or '',
-            'Pin':   int(getattr(addr_obj, 'pincode', 0) or 0),
-            'Stcd': getattr(addr_obj, 'state_code', '') or state_code or '36',
-            'Ph':    getattr(customer, 'telephone_primary', '') or '',
-            'Em':    getattr(customer, 'email', '') or '',
+            'Addr1': (snap.get('address_line') or '')[:100],
+            'Loc':   (snap.get('city') or '')[:50],
+            'Pin':   pin,
+            'Stcd':  state_code,
+            'Ph':    phone or '',
+            'Em':    email or '',
         }
 
-    # ── Line items ────────────────────────────────────────────────────────────
-    intra_state = (
-        (getattr(customer, 'state', '') or '').strip().lower()
-        ==
-        (company_state_code or '').strip().lower()
-    )
+    # ── Intra vs inter state ────────────────────────────────────────────────
+    intra_state = buyer_state_code == (company_state_code or '').strip()
 
     item_list = []
     for idx, item in enumerate(invoice.line_items.all(), start=1):
@@ -285,20 +311,22 @@ def build_irn_payload(invoice, company_gstin: str, company_state_code: str) -> d
             'Addr1': '',
             'Loc':   '',
             'Pin':   0,
-            'Stcd':  company_state_code or '27',
+            'Stcd':  company_state_code,
         },
         'BuyerDtls': _addr_block(
-            bill_addr,
-            customer_gstin,
-            getattr(customer, 'company_name', '') or '',
-            getattr(bill_addr, 'state_code', '') if bill_addr else '',
+            bill_snap,
+            buyer_gstin,
+            buyer_state_code,
+            phone=invoice.contact_number or '',
+            email=invoice.contact_email or '',
         ),
         'DispDtls': None,   # dispatch details (optional)
         'ShipDtls': _addr_block(
-            ship_addr,
-            customer_gstin,
-            getattr(customer, 'company_name', '') or '',
-            getattr(ship_addr, 'state_code', '') if ship_addr else '',
+            ship_snap,
+            buyer_gstin,
+            buyer_state_code,
+            phone=invoice.contact_number or '',
+            email=invoice.contact_email or '',
         ),
         'ItemList': item_list,
         'ValDtls': val_details,
@@ -313,7 +341,7 @@ def build_irn_payload(invoice, company_gstin: str, company_state_code: str) -> d
         'AddlDocDtls': {
             'Url':  '',
             'Docs': '',
-            'Info': getattr(quotation, 'po_number', '') or '',
+            'Info': invoice.po_number or getattr(quotation, 'po_number', '') or '',
         },
     }
 
@@ -452,7 +480,35 @@ class GSPClient:
         company_gstin       = (lh and lh.company_gstin) or self.config.gstin
         company_name        = (lh and lh.company_name)  or ''
         company_address     = (lh and lh.company_address) or ''
+        company_city        = (lh and lh.company_city) or ''
+        company_pincode_raw = (lh and lh.company_pincode) or ''
         company_state_code  = self._resolve_state_code(lh)
+
+        if not company_state_code:
+            raise GSPError(
+                'Cannot determine supplier GST state code — set a valid '
+                'company_state on the tenant letterhead before generating '
+                'e-invoices.'
+            )
+
+        # Loc (city) and Pin (6-digit pincode) are mandatory in IRP's
+        # SellerDtls block. A missing/invalid pincode here fails silently
+        # as Pin=0 if left unchecked — fail fast instead, same as state code.
+        if not company_city:
+            raise GSPError(
+                'Cannot generate e-invoice: supplier city is not set on the '
+                'tenant letterhead (required as SellerDtls.Loc by IRP).'
+            )
+        try:
+            company_pincode = int(str(company_pincode_raw).strip())
+            if not (100000 <= company_pincode <= 999999):
+                raise ValueError
+        except (ValueError, TypeError):
+            raise GSPError(
+                f'Cannot generate e-invoice: supplier pincode '
+                f'("{company_pincode_raw}") is missing or not a valid 6-digit '
+                f'PIN code (required as SellerDtls.Pin by IRP).'
+            )
 
         # 2. Build payload
         payload = build_irn_payload(invoice, company_gstin, company_state_code)
@@ -462,6 +518,8 @@ class GSPClient:
             'LglNm': company_name,
             'TrdNm': company_name,
             'Addr1': company_address[:100] if company_address else '',
+            'Loc':   company_city[:50],
+            'Pin':   company_pincode,
         })
 
         # 3. Authenticate
@@ -584,23 +642,10 @@ class GSPClient:
     @staticmethod
     def _resolve_state_code(lh) -> str:
         """
-        Map state name to 2-digit GST state code.
-        The IRP requires the numeric code, not the state name.
+        Map the tenant letterhead's company_state to a 2-digit GST state code.
+        Thin wrapper around the shared resolve_state_code() so callers that
+        already reference GSPClient._resolve_state_code(lh) (e.g.
+        einvoice_views.py) don't need to change.
         """
-        _STATE_CODES = {
-            'jammu and kashmir': '01', 'himachal pradesh': '02', 'punjab': '03',
-            'chandigarh': '04', 'uttarakhand': '05', 'haryana': '06',
-            'delhi': '07', 'rajasthan': '08', 'uttar pradesh': '09',
-            'bihar': '10', 'sikkim': '11', 'arunachal pradesh': '12',
-            'nagaland': '13', 'manipur': '14', 'mizoram': '15',
-            'tripura': '16', 'meghalaya': '17', 'assam': '18',
-            'west bengal': '19', 'jharkhand': '20', 'odisha': '21',
-            'chhattisgarh': '22', 'madhya pradesh': '23', 'gujarat': '24',
-            'daman and diu': '25', 'dadra and nagar haveli': '26',
-            'maharashtra': '27', 'andhra pradesh': '28', 'karnataka': '29',
-            'goa': '30', 'lakshadweep': '31', 'kerala': '32',
-            'tamil nadu': '33', 'puducherry': '34', 'andaman and nicobar': '35',
-            'telangana': '36', 'andhra pradesh (new)': '37',
-        }
-        state_name = (getattr(lh, 'company_state', '') or '').strip().lower()
-        return _STATE_CODES.get(state_name, '27')   # default: Maharashtra
+        state_value = getattr(lh, 'company_state', '') if lh else ''
+        return resolve_state_code(state_value)

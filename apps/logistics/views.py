@@ -1168,6 +1168,13 @@ def build_invoice_context(invoice: SalesInvoice) -> dict:
         "date_of_removal":  _fmt_date(invoice.date_of_removal),
         "time_of_removal":  _fmt_time(invoice.time_of_removal),
 
+        # Transport / dispatch (Rule 46 — required whenever goods move,
+        # independent of whether an e-way bill is generated)
+        "transporter_name":  invoice.transporter or "",
+        "vehicle_number":    invoice.vehicle_number or "",
+        "lr_number":         invoice.lr_number or "",
+        "mode_of_transport": invoice.mode_of_transport or "",
+
         # Reference numbers
         "oa_number":          oa.oa_number,
         "order_number":       order.order_number,

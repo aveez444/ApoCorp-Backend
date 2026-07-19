@@ -43,6 +43,14 @@ class TenantLetterhead(models.Model):
     # These override whatever is on the Tenant model if set.
     company_name    = models.CharField(max_length=255, blank=True)
     company_address = models.TextField(blank=True)
+    company_city    = models.CharField(
+        max_length=100, blank=True,
+        help_text="Required for e-invoice generation (IRP SellerDtls.Loc).",
+    )
+    company_pincode = models.CharField(
+        max_length=6, blank=True,
+        help_text="6-digit PIN code. Required for e-invoice generation (IRP SellerDtls.Pin).",
+    )
     company_phone   = models.CharField(max_length=50,  blank=True)
     company_email   = models.EmailField(blank=True)
     company_gstin   = models.CharField(max_length=20,  blank=True)
